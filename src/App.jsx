@@ -1,22 +1,32 @@
-import { useState } from 'react'
+import React, { useState, useEffect } from 'react';
 
 function App() {
-  const [items, setItems] = useState([])
-  const [name, setName] = useState('')
-  const [amount, setAmount] = useState('')
-  const [category, setCategory] = useState('🍔 餐飲')
+  // 1. 初始化 state：從 localStorage 讀取資料
+  const [items, setItems] = useState(() => {
+    const savedItems = localStorage.getItem('accounting_items');
+    return savedItems ? JSON.parse(savedItems) : [];
+  });
+
+  // 2. 當 items 改變時，自動同步儲存至 localStorage
+  useEffect(() => {
+    localStorage.setItem('accounting_items', JSON.stringify(items));
+  }, [items]);
+
+  const [name, setName] = useState('');
+  const [amount, setAmount] = useState('');
+  const [category, setCategory] = useState('🍔 餐飲');
 
   const handleAdd = (e) => {
-    if (e) e.preventDefault()
+    if (e) e.preventDefault();
     
     if (!name.trim() || !amount) {
-      alert('請填寫完整的項目名稱與金額！')
-      return
+      alert('請填寫完整的項目名稱與金額！');
+      return;
     }
 
     if (Number(amount) <= 0) {
-      alert('金額必須大於 0 元！')
-      return
+      alert('金額必須大於 0 元！');
+      return;
     }
 
     setItems(prevItems => [
@@ -27,26 +37,26 @@ function App() {
         amount: Number(amount),
         category 
       }
-    ])
+    ]);
 
-    setName('')
-    setAmount('')
-  }
+    setName('');
+    setAmount('');
+  };
 
   const handleDelete = (id) => {
-    setItems(items.filter(item => item.id !== id))
-  }
+    setItems(items.filter(item => item.id !== id));
+  };
 
+  // 計算總金額（直接對原始數據加總）
   const totalAmount = items.reduce((sum, item) => {
-    const currentAmount = Number(item.amount)
-    return sum + (isNaN(currentAmount) ? 0 : currentAmount)
-  }, 0)
+    const currentAmount = Number(item.amount);
+    return sum + (isNaN(currentAmount) ? 0 : currentAmount);
+  }, 0);
 
   return (
     <div style={{
       minHeight: '100vh',
       backgroundColor: '#f1f5f9',
-      /* 👇 擴大重複區域，並給每顆星星不同的角度 (rotate)、尺寸 (scale) 與位置 */
       backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cg fill='none' stroke='%231e3a8a' stroke-width='2' stroke-linejoin='round'%3E%3Cpolygon points='20,5 25,18 38,18 28,26 31,39 20,31 9,39 12,26 2,18 15,18' transform='translate(10, 10) rotate(15 20 20) scale(0.75)'/%3E%3Cpolygon points='20,5 25,18 38,18 28,26 31,39 20,31 9,39 12,26 2,18 15,18' transform='translate(110, 25) rotate(-28 20 20) scale(0.5)'/%3E%3Cpolygon points='20,5 25,18 38,18 28,26 31,39 20,31 9,39 12,26 2,18 15,18' transform='translate(55, 95) rotate(42 20 20) scale(0.65)'/%3E%3Cpolygon points='20,5 25,18 38,18 28,26 31,39 20,31 9,39 12,26 2,18 15,18' transform='translate(135, 120) rotate(-18 20 20) scale(0.85)'/%3E%3Cpolygon points='20,5 25,18 38,18 28,26 31,39 20,31 9,39 12,26 2,18 15,18' transform='translate(5, 140) rotate(33 20 20) scale(0.45)'/%3E%3C/g%3E%3C/svg%3E")`,
       backgroundRepeat: 'repeat',
       padding: '40px 20px',
@@ -151,7 +161,7 @@ function App() {
           </div>
         </form>
 
-        {/* 總金額顯示卡片 */}
+        {/* 總金額顯示卡片 (已加入防翻譯屬性) */}
         <div style={{ 
           background: 'linear-gradient(135deg, #fff5f5 0%, #ffe4e6 100%)', 
           padding: '18px 20px', 
@@ -163,7 +173,7 @@ function App() {
           border: '1px solid #fecdd3'
         }}>
           <span style={{ fontWeight: '600', color: '#9f1239', fontSize: '15px' }}>總支出金額</span>
-          <span style={{ fontSize: '24px', fontWeight: '800', color: '#e11d48' }}>
+          <span translate="no" className="notranslate" style={{ fontSize: '24px', fontWeight: '800', color: '#e11d48' }}>
             NT$ {totalAmount.toLocaleString()}
           </span>
         </div>
@@ -176,9 +186,9 @@ function App() {
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {items.length === 0 ? (
             <li style={{ 
-              color: '#475569',           /* 👈 深灰色文字 */
-              backgroundColor: '#f1f5f9', /* 👈 清爽的淺灰色背景 */
-              border: '1px solid #64748b', /* 👈 明顯的深灰色邊框 */ 
+              color: '#475569', 
+              backgroundColor: '#f1f5f9', 
+              border: '1px solid #64748b', 
               borderRadius: '12px', 
               textAlign: 'center', 
               padding: '20px', 
@@ -193,9 +203,9 @@ function App() {
                 justifyContent: 'space-between', 
                 alignItems: 'center',
                 padding: '12px 16px', 
-                backgroundColor: '#f1f5f9', /* 👈 淺灰色背景 */
+                backgroundColor: '#f1f5f9', 
                 borderRadius: '12px',
-                border: '1px solid #64748b'  /* 👈 深灰色邊框 */
+                border: '1px solid #64748b'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ 
@@ -209,14 +219,13 @@ function App() {
                   }}>
                     {item.category}
                   </span>
-                  {/* 👇 細項名稱深灰色 */}
                   <span style={{ fontWeight: '500', fontSize: '15px', color: '#1e293b' }}>
                     {item.name}
                   </span>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <strong style={{ fontSize: '15px', color: '#0f172a' }}>
+                  <strong translate="no" className="notranslate" style={{ fontSize: '15px', color: '#0f172a' }}>
                     NT$ {item.amount.toLocaleString()}
                   </strong>
                   <button 
@@ -242,7 +251,7 @@ function App() {
         </ul>
       </div>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
