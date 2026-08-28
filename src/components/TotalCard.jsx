@@ -1,5 +1,92 @@
 import React, { useRef, useEffect, useMemo, memo } from 'react';
 
+// 🎯 Day 15 新增：預算控制卡片元件
+const BudgetCard = memo(function BudgetCard({ budget, setBudget, monthExpense, budgetStatus }) {
+  const handleEditBudget = () => {
+    const input = prompt('請輸入本月預算金額：', budget);
+    if (input !== null) {
+      const num = Number(input);
+      if (!isNaN(num) && num >= 0) {
+        setBudget(num);
+      } else {
+        alert('請輸入有效的預算數字！');
+      }
+    }
+  };
+
+  return (
+    <div style={{
+      backgroundColor: '#ffffff',
+      padding: '16px',
+      borderRadius: '16px',
+      border: budgetStatus.isOver ? '2.5px solid #ef4444' : '2px solid #1e3a8a',
+      marginBottom: '16px',
+      boxSizing: 'border-box'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+        <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#1e3a8a' }}>
+          🎯 本月預算控制
+        </h3>
+        <button
+          onClick={handleEditBudget}
+          style={{
+            border: 'none',
+            background: '#e0e7ff',
+            color: '#1e3a8a',
+            borderRadius: '6px',
+            padding: '4px 8px',
+            fontSize: '12px',
+            fontWeight: '700',
+            cursor: 'pointer'
+          }}
+        >
+          設定預算
+        </button>
+      </div>
+
+      {/* 金額文字顯示 */}
+      <div style={{ fontSize: '13px', color: '#475569', marginBottom: '8px', fontWeight: '600' }}>
+        已花費：<span style={{ color: budgetStatus.color, fontWeight: '800' }}>${monthExpense.toLocaleString()}</span> / ${budget.toLocaleString()}
+        <span style={{ float: 'right', fontWeight: '700', color: budgetStatus.color }}>
+          {budgetStatus.rawPercent}%
+        </span>
+      </div>
+
+      {/* 警示條（進度條） */}
+      <div style={{
+        width: '100%',
+        height: '10px',
+        backgroundColor: '#e2e8f0',
+        borderRadius: '5px',
+        overflow: 'hidden'
+      }}>
+        <div style={{
+          width: `${budgetStatus.percent}%`,
+          height: '100%',
+          backgroundColor: budgetStatus.color,
+          transition: 'width 0.3s ease-in-out, background-color 0.3s ease'
+        }} />
+      </div>
+
+      {/* 超支警示標語 */}
+      {budgetStatus.isOver && (
+        <div style={{
+          marginTop: '10px',
+          color: '#ef4444',
+          fontSize: '12px',
+          fontWeight: '800',
+          backgroundColor: '#fef2f2',
+          padding: '6px 10px',
+          borderRadius: '8px',
+          textAlign: 'center'
+        }}>
+          🚨 注意：您已超出本月預算 ${(monthExpense - budget).toLocaleString()} 元！
+        </div>
+      )}
+    </div>
+  );
+});
+
 // 📊 每日消費趨勢長條圖 (Canvas繪製)
 const DailyBarChart = memo(function DailyBarChart({ data }) {
   const canvasRef = useRef(null);
@@ -34,7 +121,6 @@ const DailyBarChart = memo(function DailyBarChart({ data }) {
       const x = index * barWidth;
       const y = height - paddingBottom - barHeight;
 
-      // 畫柱子
       ctx.fillStyle = item.amount > 0 ? '#3b82f6' : '#f1f5f9';
       ctx.fillRect(x + 1, y, Math.max(barWidth - 2, 1), barHeight || 2);
     });
@@ -157,7 +243,8 @@ const PieChart = memo(function PieChart({ title, data, totalAmount, emptyMessage
   );
 });
 
-function TotalCard({ monthStats, expenseChartData, incomeChartData, dailyTrendData }) {
+// 主元件：接收 budget, setBudget, budgetStatus
+function TotalCard({ monthStats, budget, setBudget, budgetStatus, expenseChartData, incomeChartData, dailyTrendData }) {
   return (
     <div style={{
       flex: '1 1 350px',
@@ -175,7 +262,7 @@ function TotalCard({ monthStats, expenseChartData, incomeChartData, dailyTrendDa
       {/* 月度統計概覽 */}
       <div style={{ 
         display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center',
-        backgroundColor: '#ffffff', padding: '12px', borderRadius: '16px', marginBottom: '20px', border: '2px solid #1e3a8a'
+        backgroundColor: '#ffffff', padding: '12px', borderRadius: '16px', marginBottom: '16px', border: '2px solid #1e3a8a'
       }}>
         <div>
           <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>月收入</div>
@@ -190,6 +277,14 @@ function TotalCard({ monthStats, expenseChartData, incomeChartData, dailyTrendDa
           <div style={{ fontSize: '13px', fontWeight: '800', color: monthStats.net >= 0 ? '#1e3a8a' : '#e11d48' }}>${monthStats.net.toLocaleString()}</div>
         </div>
       </div>
+
+      {/* 🎯 Day 15 全新位置：預算控制與警示條 */}
+      <BudgetCard 
+        budget={budget}
+        setBudget={setBudget}
+        monthExpense={monthStats.expense}
+        budgetStatus={budgetStatus}
+      />
 
       {/* 📈 長條圖：每日消費趨勢 */}
       <DailyBarChart data={dailyTrendData} />

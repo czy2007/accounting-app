@@ -20,7 +20,7 @@ function App() {
     return `${year}-${month}`;
   };
 
-  // 資料狀態
+  // 1. 記帳資料狀態 (LocalStorage 持久化)
   const [items, setItems] = useState(() => {
     try {
       const savedItems = localStorage.getItem('accounting_items');
@@ -32,7 +32,7 @@ function App() {
         date: item.date || getTodayDate()
       }));
     } catch (e) {
-      console.error("Failed to parse localStorage:", e);
+      console.error("Failed to parse localStorage accounting_items:", e);
       return [];
     }
   });
@@ -40,6 +40,20 @@ function App() {
   useEffect(() => {
     localStorage.setItem('accounting_items', JSON.stringify(items));
   }, [items]);
+
+  // 🎯 Day 15：每月預算狀態 (LocalStorage 持久化)
+  const [budget, setBudget] = useState(() => {
+    try {
+      const savedBudget = localStorage.getItem('monthly_budget');
+      return savedBudget ? Number(savedBudget) : 20000;
+    } catch (e) {
+      return 20000;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('monthly_budget', budget.toString());
+  }, [budget]);
 
   // 表單狀態
   const [name, setName] = useState('');
@@ -171,7 +185,34 @@ function App() {
     );
   }, [currentMonthItems]);
 
-  // 4. 圓餅圖資料轉換（支出與收入）
+  // ⚡ 4. Day 15：預算警示門檻 (>=90% 紅色 / 70%~89.9% 黃色 / <70% 綠色)
+  const budgetStatus = useMemo(() => {
+    const expense = monthStats.expense;
+    if (!budget || budget <= 0) {
+      return { percent: 0, rawPercent: '0.0', isOver: false, color: '#3b82f6' };
+    }
+
+    const rawPercentNumber = (expense / budget) * 100;
+    const percent = Math.min(rawPercentNumber, 100);
+    const isOver = expense > budget;
+
+    let color = '#10b981'; // <70% 綠色
+
+    if (rawPercentNumber >= 90) {
+      color = '#ef4444'; // >=90% 紅色
+    } else if (rawPercentNumber >= 70) {
+      color = '#f59e0b'; // 70%~89.9% 黃色
+    }
+
+    return {
+      percent,
+      rawPercent: rawPercentNumber.toFixed(1),
+      isOver,
+      color,
+    };
+  }, [monthStats.expense, budget]);
+
+  // 5. 圓餅圖資料轉換（支出與收入）
   const expenseChartData = useMemo(() => {
     const categoryTotals = currentMonthItems
       .filter(item => item.type === 'expense')
@@ -198,7 +239,7 @@ function App() {
       .sort((a, b) => b.amount - a.amount);
   }, [currentMonthItems]);
 
-  // ⚡ 5. Day 14 全新功能：當月每日消費趨勢資料 (長條圖用)
+  // 6. 當月每日消費趨勢資料 (長條圖用)
   const dailyTrendData = useMemo(() => {
     if (!currentMonth) return [];
 
@@ -206,17 +247,14 @@ function App() {
     const year = parseInt(yearStr, 10);
     const month = parseInt(monthStr, 10);
 
-    // 計算當月天數（傳入 month 代表下個月，第 0 天即為這個月最後一天）
     const daysInMonth = new Date(year, month, 0).getDate();
 
-    // 初始化每天為 0 元
     const dailyTotals = {};
     for (let day = 1; day <= daysInMonth; day++) {
       const dayKey = String(day).padStart(2, '0');
       dailyTotals[dayKey] = 0;
     }
 
-    // 累加當月支出金額到對應日期
     currentMonthItems.forEach((item) => {
       if (item.type === 'expense' && item.date) {
         const itemDay = item.date.slice(8, 10);
@@ -232,7 +270,7 @@ function App() {
     }));
   }, [currentMonthItems, currentMonth]);
 
-  // 6. 按日期分組資料
+  // 7. 按日期分組資料
   const groupedDataByDate = useMemo(() => {
     return filteredItems.reduce((acc, item) => {
       const dateKey = item.date || '未分類日期';
@@ -244,7 +282,7 @@ function App() {
     }, {});
   }, [filteredItems]);
 
-  // 7. 日期排序陣列
+  // 8. 日期排序陣列
   const sortedDates = useMemo(() => {
     return Object.keys(groupedDataByDate).sort((a, b) => b.localeCompare(a));
   }, [groupedDataByDate]);
@@ -287,6 +325,9 @@ function App() {
           {/* 右側統計卡片與圖表 */}
           <TotalCard 
             monthStats={monthStats}
+            budget={budget}
+            setBudget={setBudget}
+            budgetStatus={budgetStatus}
             expenseChartData={expenseChartData}
             incomeChartData={incomeChartData}
             dailyTrendData={dailyTrendData}
