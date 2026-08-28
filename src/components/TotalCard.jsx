@@ -1,6 +1,65 @@
 import React, { useRef, useEffect, useMemo, memo } from 'react';
 
-// 繪製圓餅圖元件
+// 📊 每日消費趨勢長條圖 (Canvas繪製)
+const DailyBarChart = memo(function DailyBarChart({ data }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+
+    ctx.clearRect(0, 0, width, height);
+
+    const hasData = data && data.some(item => item.amount > 0);
+
+    if (!hasData) {
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('本月尚無每日消費趨勢', width / 2, height / 2);
+      return;
+    }
+
+    const maxAmount = Math.max(...data.map(d => d.amount), 1);
+    const paddingBottom = 20;
+    const paddingTop = 10;
+    const chartHeight = height - paddingBottom - paddingTop;
+    const barWidth = width / data.length;
+
+    data.forEach((item, index) => {
+      const barHeight = (item.amount / maxAmount) * chartHeight;
+      const x = index * barWidth;
+      const y = height - paddingBottom - barHeight;
+
+      // 畫柱子
+      ctx.fillStyle = item.amount > 0 ? '#3b82f6' : '#f1f5f9';
+      ctx.fillRect(x + 1, y, Math.max(barWidth - 2, 1), barHeight || 2);
+    });
+  }, [data]);
+
+  return (
+    <div style={{
+      backgroundColor: '#ffffff',
+      padding: '16px',
+      borderRadius: '16px',
+      border: '2px solid #1e3a8a',
+      textAlign: 'center',
+      marginBottom: '16px'
+    }}>
+      <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: '800', color: '#1e3a8a' }}>
+        📈 每日消費趨勢
+      </h3>
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <canvas ref={canvasRef} width={280} height={100} />
+      </div>
+    </div>
+  );
+});
+
+// 🍕 繪製圓餅圖元件
 const PieChart = memo(function PieChart({ title, data, totalAmount, emptyMessage }) {
   const canvasRef = useRef(null);
 
@@ -48,7 +107,6 @@ const PieChart = memo(function PieChart({ title, data, totalAmount, emptyMessage
     });
   }, [data, totalAmount, colors]);
 
-  // 快取渲染明細清單，避免重複計算百分比字串
   const legendList = useMemo(() => {
     if (!data || data.length === 0) return null;
     return data.map((item, index) => {
@@ -99,7 +157,7 @@ const PieChart = memo(function PieChart({ title, data, totalAmount, emptyMessage
   );
 });
 
-function TotalCard({ monthStats, expenseChartData, incomeChartData }) {
+function TotalCard({ monthStats, expenseChartData, incomeChartData, dailyTrendData }) {
   return (
     <div style={{
       flex: '1 1 350px',
@@ -114,6 +172,7 @@ function TotalCard({ monthStats, expenseChartData, incomeChartData }) {
         📊 財務圖表分析
       </h2>
 
+      {/* 月度統計概覽 */}
       <div style={{ 
         display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center',
         backgroundColor: '#ffffff', padding: '12px', borderRadius: '16px', marginBottom: '20px', border: '2px solid #1e3a8a'
@@ -132,6 +191,10 @@ function TotalCard({ monthStats, expenseChartData, incomeChartData }) {
         </div>
       </div>
 
+      {/* 📈 長條圖：每日消費趨勢 */}
+      <DailyBarChart data={dailyTrendData} />
+
+      {/* 🍕 圓餅圖：支出類別 */}
       <PieChart 
         title="💸 支出類別佔比" 
         data={expenseChartData} 
@@ -139,6 +202,7 @@ function TotalCard({ monthStats, expenseChartData, incomeChartData }) {
         emptyMessage="本月尚無支出紀錄"
       />
 
+      {/* 💵 圓餅圖：收入類別 */}
       <PieChart 
         title="💵 收入類別佔比" 
         data={incomeChartData} 
@@ -149,5 +213,4 @@ function TotalCard({ monthStats, expenseChartData, incomeChartData }) {
   );
 }
 
-// 使用 React.memo 包裹 TotalCard，當 Props (Props 引用指標) 未改變時不觸發重繪
 export default memo(TotalCard);

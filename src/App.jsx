@@ -133,7 +133,7 @@ function App() {
   };
 
   // ----------------------------------------------------
-  // ⚡ 效能優化區域：使用 useMemo 記憶所有計算結果
+  // ⚡ 效能優化區域 (useMemo)
   // ----------------------------------------------------
 
   // 1. 篩選當月原始資料
@@ -157,7 +157,7 @@ function App() {
     });
   }, [currentMonthItems, activeTab, filterCategory, searchQuery]);
 
-  // 3. 當月財務總計（收入、支出、結餘）
+  // 3. 當月財務總計
   const monthStats = useMemo(() => {
     return currentMonthItems.reduce(
       (acc, item) => {
@@ -171,7 +171,7 @@ function App() {
     );
   }, [currentMonthItems]);
 
-  // 4. 圖表資料轉換（支出與收入）
+  // 4. 圓餅圖資料轉換（支出與收入）
   const expenseChartData = useMemo(() => {
     const categoryTotals = currentMonthItems
       .filter(item => item.type === 'expense')
@@ -198,7 +198,41 @@ function App() {
       .sort((a, b) => b.amount - a.amount);
   }, [currentMonthItems]);
 
-  // 5. 按日期分組資料
+  // ⚡ 5. Day 14 全新功能：當月每日消費趨勢資料 (長條圖用)
+  const dailyTrendData = useMemo(() => {
+    if (!currentMonth) return [];
+
+    const [yearStr, monthStr] = currentMonth.split('-');
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+
+    // 計算當月天數（傳入 month 代表下個月，第 0 天即為這個月最後一天）
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    // 初始化每天為 0 元
+    const dailyTotals = {};
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dayKey = String(day).padStart(2, '0');
+      dailyTotals[dayKey] = 0;
+    }
+
+    // 累加當月支出金額到對應日期
+    currentMonthItems.forEach((item) => {
+      if (item.type === 'expense' && item.date) {
+        const itemDay = item.date.slice(8, 10);
+        if (dailyTotals[itemDay] !== undefined) {
+          dailyTotals[itemDay] += Number(item.amount) || 0;
+        }
+      }
+    });
+
+    return Object.entries(dailyTotals).map(([day, amount]) => ({
+      day: `${parseInt(day, 10)}日`,
+      amount,
+    }));
+  }, [currentMonthItems, currentMonth]);
+
+  // 6. 按日期分組資料
   const groupedDataByDate = useMemo(() => {
     return filteredItems.reduce((acc, item) => {
       const dateKey = item.date || '未分類日期';
@@ -210,7 +244,7 @@ function App() {
     }, {});
   }, [filteredItems]);
 
-  // 6. 日期排序陣列
+  // 7. 日期排序陣列
   const sortedDates = useMemo(() => {
     return Object.keys(groupedDataByDate).sort((a, b) => b.localeCompare(a));
   }, [groupedDataByDate]);
@@ -255,6 +289,7 @@ function App() {
             monthStats={monthStats}
             expenseChartData={expenseChartData}
             incomeChartData={incomeChartData}
+            dailyTrendData={dailyTrendData}
           />
         </div>
       </div>
