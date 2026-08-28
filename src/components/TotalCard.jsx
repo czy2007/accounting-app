@@ -1,13 +1,13 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo, memo } from 'react';
 
 // 繪製圓餅圖元件
-function PieChart({ title, data, totalAmount, emptyMessage }) {
+const PieChart = memo(function PieChart({ title, data, totalAmount, emptyMessage }) {
   const canvasRef = useRef(null);
 
-  const colors = [
+  const colors = useMemo(() => [
     '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
     '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16'
-  ];
+  ], []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -46,7 +46,26 @@ function PieChart({ title, data, totalAmount, emptyMessage }) {
       ctx.stroke();
       startAngle += sliceAngle;
     });
-  }, [data, totalAmount]);
+  }, [data, totalAmount, colors]);
+
+  // 快取渲染明細清單，避免重複計算百分比字串
+  const legendList = useMemo(() => {
+    if (!data || data.length === 0) return null;
+    return data.map((item, index) => {
+      const percentage = totalAmount > 0 ? ((item.amount / totalAmount) * 100).toFixed(1) : '0.0';
+      return (
+        <div key={item.category} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: colors[index % colors.length], display: 'inline-block' }}></span>
+            <span style={{ color: '#1e293b', fontWeight: '600' }}>{item.category}</span>
+          </div>
+          <span style={{ color: '#475569', fontWeight: '700' }}>
+            {percentage}% (${item.amount.toLocaleString()})
+          </span>
+        </div>
+      );
+    });
+  }, [data, totalAmount, colors]);
 
   return (
     <div style={{
@@ -72,26 +91,13 @@ function PieChart({ title, data, totalAmount, emptyMessage }) {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left', maxHeight: '120px', overflowY: 'auto' }}>
-            {data.map((item, index) => {
-              const percentage = totalAmount > 0 ? ((item.amount / totalAmount) * 100).toFixed(1) : '0.0';
-              return (
-                <div key={item.category} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: colors[index % colors.length], display: 'inline-block' }}></span>
-                    <span style={{ color: '#1e293b', fontWeight: '600' }}>{item.category}</span>
-                  </div>
-                  <span style={{ color: '#475569', fontWeight: '700' }}>
-                    {percentage}% (${item.amount.toLocaleString()})
-                  </span>
-                </div>
-              );
-            })}
+            {legendList}
           </div>
         </>
       )}
     </div>
   );
-}
+});
 
 function TotalCard({ monthStats, expenseChartData, incomeChartData }) {
   return (
@@ -143,4 +149,5 @@ function TotalCard({ monthStats, expenseChartData, incomeChartData }) {
   );
 }
 
-export default TotalCard;
+// 使用 React.memo 包裹 TotalCard，當 Props (Props 引用指標) 未改變時不觸發重繪
+export default memo(TotalCard);

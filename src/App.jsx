@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import ExpenseForm from './components/ExpenseForm';
 import ExpenseList from './components/ExpenseList';
@@ -132,36 +132,49 @@ function App() {
     setItems(items.filter(item => item.id !== id));
   };
 
-  // 計算與過濾邏輯
-  const currentMonthItems = items.filter(item => (item.date ? item.date.slice(0, 7) : '未分類') === currentMonth);
+  // ----------------------------------------------------
+  // ⚡ 效能優化區域：使用 useMemo 記憶所有計算結果
+  // ----------------------------------------------------
 
-  const filteredItems = currentMonthItems.filter(item => {
-    const matchesTab = activeTab === 'all' || item.type === activeTab;
-    const matchesCategory = filterCategory === 'ALL' || item.category === filterCategory;
+  // 1. 篩選當月原始資料
+  const currentMonthItems = useMemo(() => {
+    return items.filter(item => (item.date ? item.date.slice(0, 7) : '未分類') === currentMonth);
+  }, [items, currentMonth]);
 
-    const q = searchQuery.trim().toLowerCase();
-    const matchesSearch = !q || 
-      (item.date && item.date.includes(q)) || 
-      (item.name && item.name.toLowerCase().includes(q)) || 
-      (item.category && item.category.toLowerCase().includes(q));
+  // 2. 根據 Tab、分類選單與搜尋關鍵字過濾資料
+  const filteredItems = useMemo(() => {
+    return currentMonthItems.filter(item => {
+      const matchesTab = activeTab === 'all' || item.type === activeTab;
+      const matchesCategory = filterCategory === 'ALL' || item.category === filterCategory;
 
-    return matchesTab && matchesCategory && matchesSearch;
-  });
+      const q = searchQuery.trim().toLowerCase();
+      const matchesSearch = !q || 
+        (item.date && item.date.includes(q)) || 
+        (item.name && item.name.toLowerCase().includes(q)) || 
+        (item.category && item.category.toLowerCase().includes(q));
 
-  const monthStats = currentMonthItems.reduce(
-    (acc, item) => {
-      const val = Number(item.amount) || 0;
-      if (item.type === 'income') acc.income += val;
-      else acc.expense += val;
-      acc.net = acc.income - acc.expense;
-      return acc;
-    },
-    { income: 0, expense: 0, net: 0 }
-  );
+      return matchesTab && matchesCategory && matchesSearch;
+    });
+  }, [currentMonthItems, activeTab, filterCategory, searchQuery]);
 
-  const getChartData = (targetType) => {
+  // 3. 當月財務總計（收入、支出、結餘）
+  const monthStats = useMemo(() => {
+    return currentMonthItems.reduce(
+      (acc, item) => {
+        const val = Number(item.amount) || 0;
+        if (item.type === 'income') acc.income += val;
+        else acc.expense += val;
+        acc.net = acc.income - acc.expense;
+        return acc;
+      },
+      { income: 0, expense: 0, net: 0 }
+    );
+  }, [currentMonthItems]);
+
+  // 4. 圖表資料轉換（支出與收入）
+  const expenseChartData = useMemo(() => {
     const categoryTotals = currentMonthItems
-      .filter(item => item.type === targetType)
+      .filter(item => item.type === 'expense')
       .reduce((acc, item) => {
         acc[item.category] = (acc[item.category] || 0) + Number(item.amount);
         return acc;
@@ -170,21 +183,37 @@ function App() {
     return Object.entries(categoryTotals)
       .map(([category, amount]) => ({ category, amount }))
       .sort((a, b) => b.amount - a.amount);
-  };
+  }, [currentMonthItems]);
 
-  const expenseChartData = getChartData('expense');
-  const incomeChartData = getChartData('income');
+  const incomeChartData = useMemo(() => {
+    const categoryTotals = currentMonthItems
+      .filter(item => item.type === 'income')
+      .reduce((acc, item) => {
+        acc[item.category] = (acc[item.category] || 0) + Number(item.amount);
+        return acc;
+      }, {});
 
-  const groupedDataByDate = filteredItems.reduce((acc, item) => {
-    const dateKey = item.date || '未分類日期';
-    if (!acc[dateKey]) acc[dateKey] = { dateTotal: 0, items: [] };
-    const val = item.type === 'income' ? item.amount : -item.amount;
-    acc[dateKey].dateTotal += val;
-    acc[dateKey].items.push(item);
-    return acc;
-  }, {});
+    return Object.entries(categoryTotals)
+      .map(([category, amount]) => ({ category, amount }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [currentMonthItems]);
 
-  const sortedDates = Object.keys(groupedDataByDate).sort((a, b) => b.localeCompare(a));
+  // 5. 按日期分組資料
+  const groupedDataByDate = useMemo(() => {
+    return filteredItems.reduce((acc, item) => {
+      const dateKey = item.date || '未分類日期';
+      if (!acc[dateKey]) acc[dateKey] = { dateTotal: 0, items: [] };
+      const val = item.type === 'income' ? item.amount : -item.amount;
+      acc[dateKey].dateTotal += val;
+      acc[dateKey].items.push(item);
+      return acc;
+    }, {});
+  }, [filteredItems]);
+
+  // 6. 日期排序陣列
+  const sortedDates = useMemo(() => {
+    return Object.keys(groupedDataByDate).sort((a, b) => b.localeCompare(a));
+  }, [groupedDataByDate]);
 
   return (
     <div style={{
