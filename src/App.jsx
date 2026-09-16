@@ -302,6 +302,47 @@ function App() {
     }
   };
 
+  // 🎯 Day 17：匯出 CSV 檔案函式
+const handleExportCSV = () => {
+  if (items.length === 0) {
+    alert('目前沒有任何記帳紀錄可供匯出！');
+    return;
+  }
+
+  // 1. 定義 CSV 的表頭 (Header)
+  const headers = ['日期', '類型', '分類', '名稱/備註', '金額'];
+
+  // 2. 將 items 陣列資料轉換成 CSV 列 (Rows)
+  const rows = items.map(item => [
+    item.date || '',
+    item.type === 'income' ? '收入' : '支出',
+    item.category || '',
+    `"${(item.name || '').replace(/"/g, '""')}"`, // 處理名稱若帶有雙引號或逗號的跳脫字元
+    item.amount || 0
+  ]);
+
+  // 3. 組合表頭與內容，並用換行符號連接
+  // 加上 '\uFEFF' 是為了加入 UTF-8 BOM，防止 Excel 開啟中文時變成亂碼！
+  const csvContent = '\uFEFF' + [
+    headers.join(','),
+    ...rows.map(row => row.join(','))
+  ].join('\n');
+
+  // 4. 建立 Blob 與下載連結
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  
+  link.href = url;
+  link.setAttribute('download', `記帳本備份_${getCurrentYearMonth()}.csv`);
+  document.body.appendChild(link);
+  link.click();
+
+  // 5. 清理資源
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -317,6 +358,7 @@ function App() {
         <Header 
           currentMonth={currentMonth} 
           onMonthChange={handleMonthChange} 
+          onExportCSV={handleExportCSV} // 🎯 新增這行傳入 Handler
         />
 
         {/* 內容區域 */}
