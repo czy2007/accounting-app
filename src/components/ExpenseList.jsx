@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 
 function ExpenseList({
   searchQuery,
@@ -12,8 +12,59 @@ function ExpenseList({
   currentMonth,
   onEdit,
   onDelete,
+  onBatchDelete,
+  onClearAll,
   onOpenAddModal
 }) {
+  // 記憶目前被勾選的 item id 陣列
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  // 1. 取得當前畫面上「所有顯示中」的帳目 ID 陣列（用來做全選判斷）
+  const visibleAllIds = useMemo(() => {
+    let ids = [];
+    sortedDates.forEach((dateKey) => {
+      if (groupedDataByDate[dateKey]) {
+        groupedDataByDate[dateKey].items.forEach((item) => {
+          ids.push(item.id);
+        });
+      }
+    });
+    return ids;
+  }, [sortedDates, groupedDataByDate]);
+
+  // 單一勾選 / 取消勾選
+  const handleToggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  // 全選 / 取消全選當前畫面的帳目
+  const handleSelectAll = () => {
+    if (visibleAllIds.length === 0) return;
+    const isAllSelected = visibleAllIds.every((id) => selectedIds.includes(id));
+
+    if (isAllSelected) {
+      // 若已全選，則取消勾選當前顯示的所有 ID
+      setSelectedIds((prev) => prev.filter((id) => !visibleAllIds.includes(id)));
+    } else {
+      // 若未全選，將當前顯示的所有 ID 加入選取
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...visibleAllIds])));
+    }
+  };
+
+  // 執行批次刪除
+  const handleExecuteBatchDelete = () => {
+    if (selectedIds.length === 0) return;
+    if (onBatchDelete) {
+      onBatchDelete(selectedIds);
+      setSelectedIds([]); // 刪除完後重置勾選
+    }
+  };
+
+  const isCurrentAllSelected =
+    visibleAllIds.length > 0 && visibleAllIds.every((id) => selectedIds.includes(id));
+
   return (
     <div style={{
       flex: '1 1 450px',
@@ -75,6 +126,71 @@ function ExpenseList({
         </select>
       </div>
 
+      {/* 🎯 控制列：全選靠最左，一鍵清空/批次刪除靠最右 */}
+      <div style={{
+        display: 'flex',
+        justify: 'space-between',
+        alignItems: 'center',
+        width: '100%',
+        marginBottom: '14px',
+        padding: '8px 12px',
+        backgroundColor: '#f8fafc',
+        borderRadius: '12px',
+        border: '1.5px solid #cbd5e1',
+        boxSizing: 'border-box'
+      }}>
+        {/* 左側：全選 */}
+        <label style={{ cursor: 'pointer', userSelect: 'none', fontSize: '13px', fontWeight: '700', color: '#1e3a8a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <input
+            type="checkbox"
+            checked={isCurrentAllSelected}
+            onChange={handleSelectAll}
+            disabled={visibleAllIds.length === 0}
+            style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+          />
+          全選 ({selectedIds.length}/{visibleAllIds.length})
+        </label>
+
+        {/* 右側：動作按鈕群組 (設定 marginLeft: 'auto' 強制推到最右側) */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: 'auto' }}>
+          {selectedIds.length > 0 && (
+            <button
+              type="button"
+              onClick={handleExecuteBatchDelete}
+              style={{
+                backgroundColor: '#ef4444',
+                color: '#ffffff',
+                border: '1.5px solid #dc2626',
+                borderRadius: '8px',
+                padding: '4px 10px',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              🗑️ 刪除選取 ({selectedIds.length})
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onClearAll}
+            style={{
+              backgroundColor: '#fee2e2',
+              color: '#ef4444',
+              border: '1.5px solid #fca5a5',
+              borderRadius: '8px',
+              padding: '4px 10px',
+              fontSize: '12px',
+              fontWeight: '700',
+              cursor: 'pointer'
+            }}
+          >
+            ⚠️ 一鍵清空
+          </button>
+        </div>
+      </div>
+
       {/* 頁籤切換 */}
       <div style={{ display: 'flex', borderBottom: '2px solid #1e3a8a', marginBottom: '16px' }}>
         <button type="button" onClick={() => setActiveTab('all')} style={{ flex: 1, padding: '10px', border: 'none', background: 'none', fontWeight: '800', fontSize: '14px', cursor: 'pointer', color: activeTab === 'all' ? '#1e3a8a' : '#64748b', borderBottom: activeTab === 'all' ? '3.5px solid #1e3a8a' : '3.5px solid transparent', marginBottom: '-2px' }}>全部</button>
@@ -102,6 +218,12 @@ function ExpenseList({
                 {dateData.items.map(item => (
                   <li key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(item.id)}
+                        onChange={() => handleToggleSelect(item.id)}
+                        style={{ cursor: 'pointer', width: '15px', height: '15px' }}
+                      />
                       <span style={{ fontSize: '11px', backgroundColor: '#f1f5f9', padding: '2px 8px', borderRadius: '10px', border: '1px solid #1e3a8a', color: '#1e3a8a', fontWeight: '700' }}>{item.category}</span>
                       <span style={{ fontWeight: '600', fontSize: '14px', color: '#1e293b' }}>{item.name || item.category}</span>
                     </div>

@@ -287,6 +287,21 @@ function App() {
     return Object.keys(groupedDataByDate).sort((a, b) => b.localeCompare(a));
   }, [groupedDataByDate]);
 
+  // 🎯 1. 批次刪除函式 (已修正名稱為 items / setItems)
+  const handleBatchDelete = (selectedIds) => {
+    if (window.confirm(`確定要刪除選取的 ${selectedIds.length} 筆紀錄嗎？`)) {
+      setItems(prev => prev.filter(t => !selectedIds.includes(t.id)));
+    }
+  };
+
+  // 🎯 2. 一鍵清空所有紀錄函式 (已修正名稱為 accounting_items)
+  const handleClearAll = () => {
+    if (window.confirm('⚠️ 警告：確定要清空「所有」記帳紀錄嗎？此動作無法復原！')) {
+      setItems([]);
+      localStorage.removeItem('accounting_items');
+    }
+  };
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -319,6 +334,8 @@ function App() {
             currentMonth={currentMonth}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onBatchDelete={handleBatchDelete}
+            onClearAll={handleClearAll}
             onOpenAddModal={handleOpenAddModal}
           />
 
