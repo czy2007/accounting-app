@@ -20,6 +20,24 @@ function App() {
     return `${year}-${month}`;
   };
 
+  // 🎯 Day 18：暗黑模式狀態 (LocalStorage 持久化)
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    try {
+      const savedTheme = localStorage.getItem('accounting_theme');
+      return savedTheme ? JSON.parse(savedTheme) : false;
+    } catch (e) {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('accounting_theme', JSON.stringify(isDarkMode));
+  }, [isDarkMode]);
+
+  const handleToggleDarkMode = () => {
+    setIsDarkMode(prev => !prev);
+  };
+
   // 1. 記帳資料狀態 (LocalStorage 持久化)
   const [items, setItems] = useState(() => {
     try {
@@ -41,7 +59,7 @@ function App() {
     localStorage.setItem('accounting_items', JSON.stringify(items));
   }, [items]);
 
-  // 🎯 Day 15：每月預算狀態 (LocalStorage 持久化)
+  // 每月預算狀態 (LocalStorage 持久化)
   const [budget, setBudget] = useState(() => {
     try {
       const savedBudget = localStorage.getItem('monthly_budget');
@@ -185,7 +203,7 @@ function App() {
     );
   }, [currentMonthItems]);
 
-  // ⚡ 4. Day 15：預算警示門檻 (>=90% 紅色 / 70%~89.9% 黃色 / <70% 綠色)
+  // 4. 預算警示門檻 (>=90% 紅色 / 70%~89.9% 黃色 / <70% 綠色)
   const budgetStatus = useMemo(() => {
     const expense = monthStats.expense;
     if (!budget || budget <= 0) {
@@ -287,14 +305,14 @@ function App() {
     return Object.keys(groupedDataByDate).sort((a, b) => b.localeCompare(a));
   }, [groupedDataByDate]);
 
-  // 🎯 1. 批次刪除函式 (已修正名稱為 items / setItems)
+  // 批次刪除函式
   const handleBatchDelete = (selectedIds) => {
     if (window.confirm(`確定要刪除選取的 ${selectedIds.length} 筆紀錄嗎？`)) {
       setItems(prev => prev.filter(t => !selectedIds.includes(t.id)));
     }
   };
 
-  // 🎯 2. 一鍵清空所有紀錄函式 (已修正名稱為 accounting_items)
+  // 一鍵清空所有紀錄函式
   const handleClearAll = () => {
     if (window.confirm('⚠️ 警告：確定要清空「所有」記帳紀錄嗎？此動作無法復原！')) {
       setItems([]);
@@ -302,63 +320,63 @@ function App() {
     }
   };
 
-  // 🎯 Day 17：匯出 CSV 檔案函式
-const handleExportCSV = () => {
-  if (items.length === 0) {
-    alert('目前沒有任何記帳紀錄可供匯出！');
-    return;
-  }
+  // 匯出 CSV 檔案函式
+  const handleExportCSV = () => {
+    if (items.length === 0) {
+      alert('目前沒有任何記帳紀錄可供匯出！');
+      return;
+    }
 
-  // 1. 定義 CSV 的表頭 (Header)
-  const headers = ['日期', '類型', '分類', '名稱/備註', '金額'];
+    const headers = ['日期', '類型', '分類', '名稱/備註', '金額'];
 
-  // 2. 將 items 陣列資料轉換成 CSV 列 (Rows)
-  const rows = items.map(item => [
-    item.date || '',
-    item.type === 'income' ? '收入' : '支出',
-    item.category || '',
-    `"${(item.name || '').replace(/"/g, '""')}"`, // 處理名稱若帶有雙引號或逗號的跳脫字元
-    item.amount || 0
-  ]);
+    const rows = items.map(item => [
+      item.date || '',
+      item.type === 'income' ? '收入' : '支出',
+      item.category || '',
+      `"${(item.name || '').replace(/"/g, '""')}"`,
+      item.amount || 0
+    ]);
 
-  // 3. 組合表頭與內容，並用換行符號連接
-  // 加上 '\uFEFF' 是為了加入 UTF-8 BOM，防止 Excel 開啟中文時變成亂碼！
-  const csvContent = '\uFEFF' + [
-    headers.join(','),
-    ...rows.map(row => row.join(','))
-  ].join('\n');
+    const csvContent = '\uFEFF' + [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
 
-  // 4. 建立 Blob 與下載連結
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  
-  link.href = url;
-  link.setAttribute('download', `記帳本備份_${getCurrentYearMonth()}.csv`);
-  document.body.appendChild(link);
-  link.click();
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    
+    link.href = url;
+    link.setAttribute('download', `記帳本備份_${getCurrentYearMonth()}.csv`);
+    document.body.appendChild(link);
+    link.click();
 
-  // 5. 清理資源
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#eef5ff',
-      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cpath fill='none' stroke='%231e3a8a' stroke-opacity='0.3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M20 5l2.4 5.2 5.6.8-4 4 1 5.6-5-2.8-5 2.8 1-5.6-4-4 5.6-.8zm40 40l2.4 5.2 5.6.8-4 4 1 5.6-5-2.8-5 2.8 1-5.6-4-4 5.6-.8zM60 5l1.5 3.2 3.5.5-2.5 2.5.6 3.5-3.1-1.7-3.1 1.7.6-3.5-2.5-2.5 3.5-.5zm-40 40l1.5 3.2 3.5.5-2.5 2.5.6 3.5-3.1-1.7-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z'/%3E%3C/svg%3E")`,
+      backgroundColor: isDarkMode ? '#0f172a' : '#eef5ff',
+      backgroundImage: isDarkMode 
+        ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='110' height='110' viewBox='0 0 80 80'%3E%3Cpath fill='none' stroke='%23334155' stroke-opacity='0.55' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M20 5l2.4 5.2 5.6.8-4 4 1 5.6-5-2.8-5 2.8 1-5.6-4-4 5.6-.8zm40 40l2.4 5.2 5.6.8-4 4 1 5.6-5-2.8-5 2.8 1-5.6-4-4 5.6-.8zM60 5l1.5 3.2 3.5.5-2.5 2.5.6 3.5-3.1-1.7-3.1 1.7.6-3.5-2.5-2.5 3.5-.5zm-40 40l1.5 3.2 3.5.5-2.5 2.5.6 3.5-3.1-1.7-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z'/%3E%3C/svg%3E")`
+        : `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='110' height='110' viewBox='0 0 80 80'%3E%3Cpath fill='none' stroke='%231e3a8a' stroke-opacity='0.3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M20 5l2.4 5.2 5.6.8-4 4 1 5.6-5-2.8-5 2.8 1-5.6-4-4 5.6-.8zm40 40l2.4 5.2 5.6.8-4 4 1 5.6-5-2.8-5 2.8 1-5.6-4-4 5.6-.8zM60 5l1.5 3.2 3.5.5-2.5 2.5.6 3.5-3.1-1.7-3.1 1.7.6-3.5-2.5-2.5 3.5-.5zm-40 40l1.5 3.2 3.5.5-2.5 2.5.6 3.5-3.1-1.7-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z'/%3E%3C/svg%3E")`,
       backgroundRepeat: 'repeat',
+      color: isDarkMode ? '#f8fafc' : '#0f172a',
       padding: '30px 20px',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      boxSizing: 'border-box'
+      boxSizing: 'border-box',
+      transition: 'background-color 0.3s ease, color 0.3s ease'
     }}>
       <div style={{ maxWidth: '960px', margin: '0 auto' }}>
         {/* 頂部 Header */}
         <Header 
           currentMonth={currentMonth} 
           onMonthChange={handleMonthChange} 
-          onExportCSV={handleExportCSV} // 🎯 新增這行傳入 Handler
+          onExportCSV={handleExportCSV}
+          isDarkMode={isDarkMode}
+          onToggleDarkMode={handleToggleDarkMode}
         />
 
         {/* 內容區域 */}
@@ -379,6 +397,7 @@ const handleExportCSV = () => {
             onBatchDelete={handleBatchDelete}
             onClearAll={handleClearAll}
             onOpenAddModal={handleOpenAddModal}
+            isDarkMode={isDarkMode}
           />
 
           {/* 右側統計卡片與圖表 */}
@@ -390,6 +409,7 @@ const handleExportCSV = () => {
             expenseChartData={expenseChartData}
             incomeChartData={incomeChartData}
             dailyTrendData={dailyTrendData}
+            isDarkMode={isDarkMode}
           />
         </div>
       </div>
@@ -410,6 +430,7 @@ const handleExportCSV = () => {
         setAmount={setAmount}
         name={name}
         setName={setName}
+        isDarkMode={isDarkMode}
       />
     </div>
   );

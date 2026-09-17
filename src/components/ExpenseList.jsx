@@ -14,7 +14,8 @@ function ExpenseList({
   onDelete,
   onBatchDelete,
   onClearAll,
-  onOpenAddModal
+  onOpenAddModal,
+  isDarkMode
 }) {
   // 記憶目前被勾選的 item id 陣列
   const [selectedIds, setSelectedIds] = useState([]);
@@ -45,10 +46,8 @@ function ExpenseList({
     const isAllSelected = visibleAllIds.every((id) => selectedIds.includes(id));
 
     if (isAllSelected) {
-      // 若已全選，則取消勾選當前顯示的所有 ID
       setSelectedIds((prev) => prev.filter((id) => !visibleAllIds.includes(id)));
     } else {
-      // 若未全選，將當前顯示的所有 ID 加入選取
       setSelectedIds((prev) => Array.from(new Set([...prev, ...visibleAllIds])));
     }
   };
@@ -68,12 +67,15 @@ function ExpenseList({
   return (
     <div style={{
       flex: '1 1 450px',
-      backgroundColor: '#ffffff',
+      // 🎯 外卡片背景深淺對齊右側財務分析
+      backgroundColor: isDarkMode ? '#2c3846' : '#ffffff',
+      color: isDarkMode ? '#f8fafc' : '#0f172a',
       padding: '24px',
       borderRadius: '24px',
-      boxShadow: '0 10px 25px -5px rgba(30, 58, 138, 0.08)',
-      border: '2.5px solid #1e3a8a',
-      boxSizing: 'border-box'
+      boxShadow: isDarkMode ? '0 10px 25px rgba(0,0,0,0.2)' : '0 10px 25px -5px rgba(30, 58, 138, 0.08)',
+      border: isDarkMode ? '1.5px solid #3a4859' : '2.5px solid #1e3a8a',
+      boxSizing: 'border-box',
+      transition: 'all 0.3s ease'
     }}>
       {/* 搜尋列 */}
       <div style={{ marginBottom: '16px', position: 'relative' }}>
@@ -84,7 +86,10 @@ function ExpenseList({
           onChange={(e) => setSearchQuery(e.target.value)}
           style={{
             width: '100%', padding: '12px 14px', borderRadius: '14px',
-            border: '2px solid #1e3a8a', backgroundColor: '#f8fafc',
+            border: isDarkMode ? '1.5px solid #3a4859' : '2px solid #1e3a8a',
+            // 🎯 內部搜尋框底色對齊
+            backgroundColor: isDarkMode ? '#1e2632' : '#f8fafc',
+            color: isDarkMode ? '#f8fafc' : '#0f172a',
             fontSize: '14px', outline: 'none', boxSizing: 'border-box'
           }}
         />
@@ -104,11 +109,21 @@ function ExpenseList({
 
       {/* 標題與分類篩選 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e3a8a', margin: 0 }}>當月明細</h2>
+        <h2 style={{ fontSize: '18px', fontWeight: '800', color: isDarkMode ? '#38bdf8' : '#1e3a8a', margin: 0 }}>當月明細</h2>
         <select
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}
-          style={{ padding: '6px 12px', borderRadius: '10px', border: '2px solid #1e3a8a', fontSize: '12px', outline: 'none', backgroundColor: '#ffffff', cursor: 'pointer', fontWeight: '700', color: '#1e3a8a' }}
+          style={{ 
+            padding: '6px 12px', 
+            borderRadius: '10px', 
+            border: isDarkMode ? '1.5px solid #3a4859' : '2px solid #1e3a8a', 
+            fontSize: '12px', 
+            outline: 'none', 
+            backgroundColor: isDarkMode ? '#1e2632' : '#ffffff', 
+            cursor: 'pointer', 
+            fontWeight: '700', 
+            color: isDarkMode ? '#f8fafc' : '#1e3a8a' 
+          }}
         >
           <option value="ALL">🏷️ 全部分類</option>
           <option value="🍔 餐飲">🍔 餐飲</option>
@@ -134,13 +149,13 @@ function ExpenseList({
         width: '100%',
         marginBottom: '14px',
         padding: '8px 12px',
-        backgroundColor: '#f8fafc',
+        backgroundColor: isDarkMode ? '#1e2632' : '#f8fafc',
         borderRadius: '12px',
-        border: '1.5px solid #cbd5e1',
+        border: isDarkMode ? '1.5px solid #3a4859' : '1.5px solid #cbd5e1',
         boxSizing: 'border-box'
       }}>
         {/* 左側：全選 */}
-        <label style={{ cursor: 'pointer', userSelect: 'none', fontSize: '13px', fontWeight: '700', color: '#1e3a8a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <label style={{ cursor: 'pointer', userSelect: 'none', fontSize: '13px', fontWeight: '700', color: isDarkMode ? '#f8fafc' : '#1e3a8a', display: 'flex', alignItems: 'center', gap: '6px' }}>
           <input
             type="checkbox"
             checked={isCurrentAllSelected}
@@ -151,7 +166,7 @@ function ExpenseList({
           全選 ({selectedIds.length}/{visibleAllIds.length})
         </label>
 
-        {/* 右側：動作按鈕群組 (設定 marginLeft: 'auto' 強制推到最右側) */}
+        {/* 右側：動作按鈕群組 */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: 'auto' }}>
           {selectedIds.length > 0 && (
             <button
@@ -168,7 +183,7 @@ function ExpenseList({
                 cursor: 'pointer'
               }}
             >
-              🗑️ 刪除選取 ({selectedIds.length})
+              🚨 一鍵清空 ({selectedIds.length})
             </button>
           )}
 
@@ -176,9 +191,9 @@ function ExpenseList({
             type="button"
             onClick={onClearAll}
             style={{
-              backgroundColor: '#fee2e2',
-              color: '#ef4444',
-              border: '1.5px solid #fca5a5',
+              backgroundColor: isDarkMode ? '#7f1d1d' : '#fee2e2',
+              color: isDarkMode ? '#fca5a5' : '#ef4444',
+              border: isDarkMode ? '1.5px solid #991b1b' : '1.5px solid #fca5a5',
               borderRadius: '8px',
               padding: '4px 10px',
               fontSize: '12px',
@@ -192,25 +207,25 @@ function ExpenseList({
       </div>
 
       {/* 頁籤切換 */}
-      <div style={{ display: 'flex', borderBottom: '2px solid #1e3a8a', marginBottom: '16px' }}>
-        <button type="button" onClick={() => setActiveTab('all')} style={{ flex: 1, padding: '10px', border: 'none', background: 'none', fontWeight: '800', fontSize: '14px', cursor: 'pointer', color: activeTab === 'all' ? '#1e3a8a' : '#64748b', borderBottom: activeTab === 'all' ? '3.5px solid #1e3a8a' : '3.5px solid transparent', marginBottom: '-2px' }}>全部</button>
-        <button type="button" onClick={() => setActiveTab('expense')} style={{ flex: 1, padding: '10px', border: 'none', background: 'none', fontWeight: '800', fontSize: '14px', cursor: 'pointer', color: activeTab === 'expense' ? '#ef4444' : '#64748b', borderBottom: activeTab === 'expense' ? '3.5px solid #ef4444' : '3.5px solid transparent', marginBottom: '-2px' }}>💸 支出</button>
-        <button type="button" onClick={() => setActiveTab('income')} style={{ flex: 1, padding: '10px', border: 'none', background: 'none', fontWeight: '800', fontSize: '14px', cursor: 'pointer', color: activeTab === 'income' ? '#10b981' : '#64748b', borderBottom: activeTab === 'income' ? '3.5px solid #10b981' : '3.5px solid transparent', marginBottom: '-2px' }}>💵 收入</button>
+      <div style={{ display: 'flex', borderBottom: isDarkMode ? '2px solid #3a4859' : '2px solid #1e3a8a', marginBottom: '16px' }}>
+        <button type="button" onClick={() => setActiveTab('all')} style={{ flex: 1, padding: '10px', border: 'none', background: 'none', fontWeight: '800', fontSize: '14px', cursor: 'pointer', color: activeTab === 'all' ? (isDarkMode ? '#38bdf8' : '#1e3a8a') : '#94a3b8', borderBottom: activeTab === 'all' ? `3.5px solid ${isDarkMode ? '#38bdf8' : '#1e3a8a'}` : '3.5px solid transparent', marginBottom: '-2px' }}>全部</button>
+        <button type="button" onClick={() => setActiveTab('expense')} style={{ flex: 1, padding: '10px', border: 'none', background: 'none', fontWeight: '800', fontSize: '14px', cursor: 'pointer', color: activeTab === 'expense' ? '#ef4444' : '#94a3b8', borderBottom: activeTab === 'expense' ? '3.5px solid #ef4444' : '3.5px solid transparent', marginBottom: '-2px' }}>💸 支出</button>
+        <button type="button" onClick={() => setActiveTab('income')} style={{ flex: 1, padding: '10px', border: 'none', background: 'none', fontWeight: '800', fontSize: '14px', cursor: 'pointer', color: activeTab === 'income' ? '#10b981' : '#94a3b8', borderBottom: activeTab === 'income' ? '3.5px solid #10b981' : '3.5px solid transparent', marginBottom: '-2px' }}>💵 收入</button>
       </div>
 
       {/* 清單內容 */}
       {sortedDates.length === 0 ? (
-        <div style={{ color: '#64748b', backgroundColor: '#f8fafc', border: '2px solid #1e3a8a', borderRadius: '16px', textAlign: 'center', padding: '32px 20px', fontSize: '14px' }}>
+        <div style={{ color: '#94a3b8', backgroundColor: isDarkMode ? '#1e2632' : '#f8fafc', border: isDarkMode ? '1.5px solid #3a4859' : '2px solid #1e3a8a', borderRadius: '16px', textAlign: 'center', padding: '32px 20px', fontSize: '14px' }}>
           {searchQuery ? `找不到符合「${searchQuery}」的紀錄` : `${currentMonth} 月份尚無紀錄`}
         </div>
       ) : (
         sortedDates.map(dateKey => {
           const dateData = groupedDataByDate[dateKey];
           return (
-            <div key={dateKey} style={{ backgroundColor: '#ffffff', borderRadius: '16px', padding: '14px', border: '2px solid #1e3a8a', marginBottom: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1.5px dashed #cbd5e1', paddingBottom: '8px', marginBottom: '8px' }}>
-                <span style={{ fontWeight: '700', fontSize: '13px', color: '#1e3a8a' }}>📅 {dateKey}</span>
-                <span style={{ fontSize: '13px', fontWeight: '800', color: dateData.dateTotal >= 0 ? '#059669' : '#e11d48' }}>
+            <div key={dateKey} style={{ backgroundColor: isDarkMode ? '#1e2632' : '#ffffff', borderRadius: '16px', padding: '14px', border: isDarkMode ? '1.5px solid #3a4859' : '2px solid #1e3a8a', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: isDarkMode ? '1.5px dashed #3a4859' : '1.5px dashed #cbd5e1', paddingBottom: '8px', marginBottom: '8px' }}>
+                <span style={{ fontWeight: '700', fontSize: '13px', color: isDarkMode ? '#38bdf8' : '#1e3a8a' }}>📅 {dateKey}</span>
+                <span style={{ fontSize: '13px', fontWeight: '800', color: dateData.dateTotal >= 0 ? '#10b981' : '#f43f5e' }}>
                   日小計: {dateData.dateTotal >= 0 ? '+' : ''}NT$ {dateData.dateTotal.toLocaleString()}
                 </span>
               </div>
@@ -224,15 +239,15 @@ function ExpenseList({
                         onChange={() => handleToggleSelect(item.id)}
                         style={{ cursor: 'pointer', width: '15px', height: '15px' }}
                       />
-                      <span style={{ fontSize: '11px', backgroundColor: '#f1f5f9', padding: '2px 8px', borderRadius: '10px', border: '1px solid #1e3a8a', color: '#1e3a8a', fontWeight: '700' }}>{item.category}</span>
-                      <span style={{ fontWeight: '600', fontSize: '14px', color: '#1e293b' }}>{item.name || item.category}</span>
+                      <span style={{ fontSize: '11px', backgroundColor: isDarkMode ? '#2c3846' : '#f1f5f9', padding: '2px 8px', borderRadius: '10px', border: isDarkMode ? '1px solid #3a4859' : '1px solid #1e3a8a', color: isDarkMode ? '#38bdf8' : '#1e3a8a', fontWeight: '700' }}>{item.category}</span>
+                      <span style={{ fontWeight: '600', fontSize: '14px', color: isDarkMode ? '#f8fafc' : '#1e293b' }}>{item.name || item.category}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <strong style={{ fontSize: '14px', color: item.type === 'income' ? '#059669' : '#e11d48', marginRight: '4px' }}>
+                      <strong style={{ fontSize: '14px', color: item.type === 'income' ? '#10b981' : '#f43f5e', marginRight: '4px' }}>
                         {item.type === 'income' ? '+' : '-'} NT$ {item.amount.toLocaleString()}
                       </strong>
-                      <button type="button" onClick={() => onEdit(item)} style={{ backgroundColor: '#e0f2fe', color: '#0284c7', border: '1px solid #0284c7', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}>編輯</button>
-                      <button type="button" onClick={() => onDelete(item.id)} style={{ backgroundColor: '#fee2e2', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}>刪除</button>
+                      <button type="button" onClick={() => onEdit(item)} style={{ backgroundColor: isDarkMode ? '#0c4a6e' : '#e0f2fe', color: isDarkMode ? '#38bdf8' : '#0284c7', border: isDarkMode ? '1px solid #0284c7' : '1px solid #0284c7', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}>編輯</button>
+                      <button type="button" onClick={() => onDelete(item.id)} style={{ backgroundColor: isDarkMode ? '#451a1a' : '#fee2e2', color: isDarkMode ? '#fca5a5' : '#ef4444', border: isDarkMode ? '1px solid #991b1b' : '1px solid #ef4444', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}>刪除</button>
                     </div>
                   </li>
                 ))}
@@ -247,8 +262,9 @@ function ExpenseList({
         onClick={onOpenAddModal}
         style={{
           marginTop: '16px', width: '100%', padding: '14px',
-          backgroundColor: '#f1f5f9', color: '#334155',
-          border: '2px solid #475569', borderRadius: '16px',
+          backgroundColor: isDarkMode ? '#1e2632' : '#f1f5f9', 
+          color: isDarkMode ? '#f8fafc' : '#334155',
+          border: isDarkMode ? '1.5px solid #3a4859' : '2px solid #475569', borderRadius: '16px',
           fontSize: '16px', fontWeight: '800', cursor: 'pointer',
           boxShadow: '0 4px 10px rgba(0, 0, 0, 0.05)',
           display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px'
