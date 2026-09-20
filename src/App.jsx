@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
+import Navbar from './components/Navbar';
 import ExpenseForm from './components/ExpenseForm';
-import ExpenseList from './components/ExpenseList';
-import TotalCard from './components/TotalCard';
-// 🎯 1. 補上匯率工具函式引入
 import { fetchExchangeRates, DEFAULT_RATES } from './components/currencyUtils';
 import './App.css';
+
+// 引入頁面組件
+import HomePage from './pages/HomePage';
+import StatsPage from './pages/StatsPage';
+import SettingsPage from './pages/SettingsPage';
 
 function App() {
   const getTodayDate = () => {
@@ -23,7 +27,7 @@ function App() {
     return `${year}-${month}`;
   };
 
-  // 🎯 Day 18：暗黑模式狀態 (LocalStorage 持久化)
+  // 暗黑模式狀態
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try {
       const savedTheme = localStorage.getItem('accounting_theme');
@@ -41,11 +45,23 @@ function App() {
     setIsDarkMode(prev => !prev);
   };
 
-  // 🎯 2. 幣別與匯率狀態管理
-  const [currency, setCurrency] = useState('TWD');
+  // 1. 主要基準貨幣（預設 TWD）
+  const [baseCurrency, setBaseCurrency] = useState(() => {
+    try {
+      return localStorage.getItem('accounting_base_currency') || 'TWD';
+    } catch (e) {
+      return 'TWD';
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('accounting_base_currency', baseCurrency);
+  }, [baseCurrency]);
+
+  // 幣別與匯率狀態管理
+  const [currency, setCurrency] = useState(baseCurrency);
   const [rates, setRates] = useState(DEFAULT_RATES);
 
-  // 自動抓取最新匯率 API
   useEffect(() => {
     async function loadRates() {
       const fetchedRates = await fetchExchangeRates();
@@ -54,7 +70,39 @@ function App() {
     loadRates();
   }, []);
 
-  // 1. 記帳資料狀態 (LocalStorage 持久化)
+  // 切換主要貨幣處理邏輯
+  const handleBaseCurrencyChange = (newBaseCurrency) => {
+    if (newBaseCurrency === baseCurrency) return;
+
+    if (window.confirm(`確定要將系統主要貨幣變更為 ${newBaseCurrency} 嗎？所有過往紀錄金額將會自動依當前匯率重新計算。`)) {
+      setBaseCurrency(newBaseCurrency);
+      
+      // 當主要貨幣變更時，重新計算所有項目的主要幣別金額 (amount)
+      setItems(prevItems => prevItems.map(item => {
+        const origCurrency = item.originalCurrency || 'TWD';
+        const origAmount = item.originalAmount || item.amount;
+
+        // 若原始幣別即為新的基準幣別
+        if (origCurrency === newBaseCurrency) {
+          return { ...item, amount: origAmount };
+        }
+
+        // 經由台幣交叉換算
+        const origRate = rates[origCurrency]?.rate || 1;
+        const newBaseRate = rates[newBaseCurrency]?.rate || 1;
+
+        const amountInTWD = origCurrency === 'TWD' ? origAmount : origAmount / origRate;
+        const amountInNewBase = newBaseCurrency === 'TWD' ? amountInTWD : Math.round(amountInTWD * newBaseRate);
+
+        return {
+          ...item,
+          amount: amountInNewBase
+        };
+      }));
+    }
+  };
+
+  // 記帳資料狀態
   const [items, setItems] = useState(() => {
     try {
       const savedItems = localStorage.getItem('accounting_items');
@@ -75,7 +123,7 @@ function App() {
     localStorage.setItem('accounting_items', JSON.stringify(items));
   }, [items]);
 
-  // 每月預算狀態 (LocalStorage 持久化)
+  // 每月預算狀態
   const [budget, setBudget] = useState(() => {
     try {
       const savedBudget = localStorage.getItem('monthly_budget');
@@ -104,7 +152,6 @@ function App() {
   const [activeTab, setActiveTab] = useState('all');
   const [filterCategory, setFilterCategory] = useState('ALL');
 
-  // 切換月份
   const handleMonthChange = (delta) => {
     const [yearStr, monthStr] = currentMonth.split('-');
     let year = parseInt(yearStr, 10);
@@ -121,24 +168,22 @@ function App() {
     setCurrentMonth(`${year}-${String(month).padStart(2, '0')}`);
   };
 
-  // 🎯 開關與清理表單 (重置幣別為 TWD)
   const handleOpenAddModal = () => {
     setEditingId(null);
     setName('');
     setAmount('');
-    setCurrency('TWD');
+    setCurrency(baseCurrency); // 預設帶入設定的主要貨幣
     setDate(getTodayDate());
     setType('expense');
     setCategory('🍔 餐飲');
     setIsModalOpen(true);
   };
 
-  // 🎯 點擊編輯時，載入項目的原始外幣與金額
   const handleEdit = (item) => {
     setEditingId(item.id);
     setName(item.name || '');
     setAmount(item.originalAmount || item.amount);
-    setCurrency(item.originalCurrency || 'TWD');
+    setCurrency(item.originalCurrency || baseCurrency);
     setCategory(item.category);
     setType(item.type);
     setDate(item.date || getTodayDate());
@@ -150,7 +195,6 @@ function App() {
     setEditingId(null);
   };
 
-  // 🎯 3. 外幣換算為台幣的計算邏輯
   const handleAdd = (e) => {
     if (e) e.preventDefault();
     const numAmount = Number(amount);
@@ -164,9 +208,16 @@ function App() {
       return;
     }
 
-    // 計算折合台幣 (TWD) 金額
-    const currentRate = rates[currency]?.rate || 1;
-    const amountInTWD = currency === 'TWD' ? numAmount : Math.round(numAmount / currentRate);
+    // 計算折合主要幣別金額
+    let calculatedAmount = numAmount;
+
+    if (currency !== baseCurrency) {
+      const origRate = rates[currency]?.rate || 1;
+      const baseRate = rates[baseCurrency]?.rate || 1;
+
+      const amountInTWD = currency === 'TWD' ? numAmount : numAmount / origRate;
+      calculatedAmount = baseCurrency === 'TWD' ? amountInTWD : Math.round(amountInTWD * baseRate);
+    }
 
     if (editingId) {
       setItems(prevItems =>
@@ -177,7 +228,7 @@ function App() {
                 name: name.trim(), 
                 originalAmount: numAmount,
                 originalCurrency: currency,
-                amount: amountInTWD, 
+                amount: calculatedAmount, 
                 category, 
                 type, 
                 date 
@@ -192,7 +243,7 @@ function App() {
           name: name.trim(), 
           originalAmount: numAmount,
           originalCurrency: currency,
-          amount: amountInTWD, 
+          amount: calculatedAmount, 
           category, 
           type, 
           date 
@@ -208,16 +259,10 @@ function App() {
     setItems(items.filter(item => item.id !== id));
   };
 
-  // ----------------------------------------------------
-  // ⚡ 效能優化區域 (useMemo)
-  // ----------------------------------------------------
-
-  // 1. 篩選當月原始資料
   const currentMonthItems = useMemo(() => {
     return items.filter(item => (item.date ? item.date.slice(0, 7) : '未分類') === currentMonth);
   }, [items, currentMonth]);
 
-  // 2. 根據 Tab、分類選單與搜尋關鍵字過濾資料
   const filteredItems = useMemo(() => {
     return currentMonthItems.filter(item => {
       const matchesTab = activeTab === 'all' || item.type === activeTab;
@@ -233,7 +278,6 @@ function App() {
     });
   }, [currentMonthItems, activeTab, filterCategory, searchQuery]);
 
-  // 3. 當月財務總計
   const monthStats = useMemo(() => {
     return currentMonthItems.reduce(
       (acc, item) => {
@@ -247,7 +291,6 @@ function App() {
     );
   }, [currentMonthItems]);
 
-  // 4. 預算警示門檻 (>=90% 紅色 / 70%~89.9% 黃色 / <70% 綠色)
   const budgetStatus = useMemo(() => {
     const expense = monthStats.expense;
     if (!budget || budget <= 0) {
@@ -258,12 +301,12 @@ function App() {
     const percent = Math.min(rawPercentNumber, 100);
     const isOver = expense > budget;
 
-    let color = '#10b981'; // <70% 綠色
+    let color = '#10b981';
 
     if (rawPercentNumber >= 90) {
-      color = '#ef4444'; // >=90% 紅色
+      color = '#ef4444';
     } else if (rawPercentNumber >= 70) {
-      color = '#f59e0b'; // 70%~89.9% 黃色
+      color = '#f59e0b';
     }
 
     return {
@@ -274,7 +317,6 @@ function App() {
     };
   }, [monthStats.expense, budget]);
 
-  // 5. 圓餅圖資料轉換（支出與收入）
   const expenseChartData = useMemo(() => {
     const categoryTotals = currentMonthItems
       .filter(item => item.type === 'expense')
@@ -301,7 +343,6 @@ function App() {
       .sort((a, b) => b.amount - a.amount);
   }, [currentMonthItems]);
 
-  // 6. 當月每日消費趨勢資料 (長條圖用)
   const dailyTrendData = useMemo(() => {
     if (!currentMonth) return [];
 
@@ -332,7 +373,6 @@ function App() {
     }));
   }, [currentMonthItems, currentMonth]);
 
-  // 7. 按日期分組資料
   const groupedDataByDate = useMemo(() => {
     return filteredItems.reduce((acc, item) => {
       const dateKey = item.date || '未分類日期';
@@ -344,19 +384,16 @@ function App() {
     }, {});
   }, [filteredItems]);
 
-  // 8. 日期排序陣列
   const sortedDates = useMemo(() => {
     return Object.keys(groupedDataByDate).sort((a, b) => b.localeCompare(a));
   }, [groupedDataByDate]);
 
-  // 批次刪除函式
   const handleBatchDelete = (selectedIds) => {
     if (window.confirm(`確定要刪除選取的 ${selectedIds.length} 筆紀錄嗎？`)) {
       setItems(prev => prev.filter(t => !selectedIds.includes(t.id)));
     }
   };
 
-  // 一鍵清空所有紀錄函式
   const handleClearAll = () => {
     if (window.confirm('⚠️ 警告：確定要清空「所有」記帳紀錄嗎？此動作無法復原！')) {
       setItems([]);
@@ -364,21 +401,20 @@ function App() {
     }
   };
 
-  // 匯出 CSV 檔案函式 (包含外幣資訊)
   const handleExportCSV = () => {
     if (items.length === 0) {
       alert('目前沒有任何記帳紀錄可供匯出！');
       return;
     }
 
-    const headers = ['日期', '類型', '分類', '名稱/備註', '幣別', '外幣金額', '折合台幣(TWD)'];
+    const headers = ['日期', '類型', '分類', '名稱/備註', '幣別', '外幣金額', `折合主要幣別(${baseCurrency})`];
 
     const rows = items.map(item => [
       item.date || '',
       item.type === 'income' ? '收入' : '支出',
       item.category || '',
       `"${(item.name || '').replace(/"/g, '""')}"`,
-      item.originalCurrency || 'TWD',
+      item.originalCurrency || baseCurrency,
       item.originalAmount || item.amount || 0,
       item.amount || 0
     ]);
@@ -401,20 +437,31 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
+  const starBgLight = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cpath fill='none' stroke='%2393c5fd' stroke-opacity='0.6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M40 10l4.8 10.4 11.2 1.6-8 8 1.9 11.2-10-5.6-10 5.6 1.9-11.2-8-8 11.2-1.6zm80 80l4.8 10.4 11.2 1.6-8 8 1.9 11.2-10-5.6-10 5.6 1.9-11.2-8-8 11.2-1.6zM120 10l3 6.4 7 1-5 5 1.2 7-6.2-3.4-6.2 3.4 1.2-7-5-5 7-1zm-80 80l3 6.4 7 1-5 5 1.2 7-6.2-3.4-6.2 3.4 1.2-7-5-5 7-1z'/%3E%3C/svg%3E")`;
+  const starBgDark = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cpath fill='none' stroke='%23334155' stroke-opacity='0.7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M40 10l4.8 10.4 11.2 1.6-8 8 1.9 11.2-10-5.6-10 5.6 1.9-11.2-8-8 11.2-1.6zm80 80l4.8 10.4 11.2 1.6-8 8 1.9 11.2-10-5.6-10 5.6 1.9-11.2-8-8 11.2-1.6zM120 10l3 6.4 7 1-5 5 1.2 7-6.2-3.4-6.2 3.4 1.2-7-5-5 7-1zm-80 80l3 6.4 7 1-5 5 1.2 7-6.2-3.4-6.2 3.4 1.2-7-5-5 7-1z'/%3E%3C/svg%3E")`;
+
   return (
-    <div style={{
+    <div className="app-container" style={{
       minHeight: '100vh',
       backgroundColor: isDarkMode ? '#0f172a' : '#eef5ff',
-      backgroundImage: isDarkMode 
-        ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='110' height='110' viewBox='0 0 80 80'%3E%3Cpath fill='none' stroke='%23334155' stroke-opacity='0.55' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M20 5l2.4 5.2 5.6.8-4 4 1 5.6-5-2.8-5 2.8 1-5.6-4-4 5.6-.8zm40 40l2.4 5.2 5.6.8-4 4 1 5.6-5-2.8-5 2.8 1-5.6-4-4 5.6-.8zM60 5l1.5 3.2 3.5.5-2.5 2.5.6 3.5-3.1-1.7-3.1 1.7.6-3.5-2.5-2.5 3.5-.5zm-40 40l1.5 3.2 3.5.5-2.5 2.5.6 3.5-3.1-1.7-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z'/%3E%3C/svg%3E")`
-        : `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='110' height='110' viewBox='0 0 80 80'%3E%3Cpath fill='none' stroke='%231e3a8a' stroke-opacity='0.3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M20 5l2.4 5.2 5.6.8-4 4 1 5.6-5-2.8-5 2.8 1-5.6-4-4 5.6-.8zm40 40l2.4 5.2 5.6.8-4 4 1 5.6-5-2.8-5 2.8 1-5.6-4-4 5.6-.8zM60 5l1.5 3.2 3.5.5-2.5 2.5.6 3.5-3.1-1.7-3.1 1.7.6-3.5-2.5-2.5 3.5-.5zm-40 40l1.5 3.2 3.5.5-2.5 2.5.6 3.5-3.1-1.7-3.1 1.7.6-3.5-2.5-2.5 3.5-.5z'/%3E%3C/svg%3E")`,
+      backgroundImage: isDarkMode ? starBgDark : starBgLight,
       backgroundRepeat: 'repeat',
       color: isDarkMode ? '#f8fafc' : '#0f172a',
-      padding: '30px 20px',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       boxSizing: 'border-box',
       transition: 'background-color 0.3s ease, color 0.3s ease'
     }}>
+      <style>{`
+        .app-container {
+          padding: 20px 20px 70px 20px;
+        }
+        @media (min-width: 768px) {
+          .app-container {
+            padding: 30px 20px 30px 20px;
+          }
+        }
+      `}</style>
+
       <div style={{ maxWidth: '960px', margin: '0 auto' }}>
         {/* 頂部 Header */}
         <Header 
@@ -425,42 +472,71 @@ function App() {
           onToggleDarkMode={handleToggleDarkMode}
         />
 
-        {/* 內容區域：加上 className="main-layout" 以便套用 RWD 媒體查詢 */}
-        <div className="main-layout" style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-          {/* 左側記帳清單 */}
-          <ExpenseList 
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            filterCategory={filterCategory}
-            setFilterCategory={setFilterCategory}
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            sortedDates={sortedDates}
-            groupedDataByDate={groupedDataByDate}
-            currentMonth={currentMonth}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onBatchDelete={handleBatchDelete}
-            onClearAll={handleClearAll}
-            onOpenAddModal={handleOpenAddModal}
-            isDarkMode={isDarkMode}
-          />
+        {/* 導覽列 */}
+        <Navbar isDarkMode={isDarkMode} />
 
-          {/* 右側統計卡片與圖表 */}
-          <TotalCard 
-            monthStats={monthStats}
-            budget={budget}
-            setBudget={setBudget}
-            budgetStatus={budgetStatus}
-            expenseChartData={expenseChartData}
-            incomeChartData={incomeChartData}
-            dailyTrendData={dailyTrendData}
-            isDarkMode={isDarkMode}
-          />
+        {/* 內容區域 */}
+        <div className="main-layout" style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <Routes>
+            <Route 
+              path="/" 
+              element={
+                <HomePage
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                  filterCategory={filterCategory}
+                  setFilterCategory={setFilterCategory}
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  sortedDates={sortedDates}
+                  groupedDataByDate={groupedDataByDate}
+                  currentMonth={currentMonth}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onBatchDelete={handleBatchDelete}
+                  onClearAll={handleClearAll}
+                  onOpenAddModal={handleOpenAddModal}
+                  isDarkMode={isDarkMode}
+                  baseCurrency={baseCurrency}
+                />
+              } 
+            />
+
+            <Route 
+              path="/stats" 
+              element={
+                <StatsPage 
+                  monthStats={monthStats}
+                  budget={budget}
+                  setBudget={setBudget}
+                  budgetStatus={budgetStatus}
+                  expenseChartData={expenseChartData}
+                  incomeChartData={incomeChartData}
+                  dailyTrendData={dailyTrendData}
+                  isDarkMode={isDarkMode}
+                  baseCurrency={baseCurrency}
+                />
+              } 
+            />
+
+            <Route 
+              path="/settings" 
+              element={
+                <SettingsPage 
+                  isDarkMode={isDarkMode}
+                  onToggleDarkMode={handleToggleDarkMode}
+                  onExportCSV={handleExportCSV}
+                  baseCurrency={baseCurrency}
+                  onBaseCurrencyChange={handleBaseCurrencyChange}
+                  rates={rates}
+                />
+              } 
+            />
+          </Routes>
         </div>
       </div>
 
-      {/* 新增/編輯 Modal 表單 */}
+      {/* 新增/編輯 Modal */}
       <ExpenseForm 
         isOpen={isModalOpen}
         onClose={handleCloseModal}
@@ -474,12 +550,11 @@ function App() {
         setCategory={setCategory}
         amount={amount}
         setAmount={setAmount}
-        name={name}
-        setName={setName}
         currency={currency}
         setCurrency={setCurrency}  
         rates={rates}
         isDarkMode={isDarkMode}
+        baseCurrency={baseCurrency}
       />
     </div>
   );

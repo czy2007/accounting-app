@@ -1,5 +1,20 @@
 import React, { useState, useMemo } from 'react';
 
+// 輔助函式：動態匯率換算
+const convertAmount = (amount, fromCurrency, toCurrency, rates) => {
+  const numericAmount = Number(amount) || 0;
+  if (!fromCurrency || !toCurrency || fromCurrency === toCurrency) return numericAmount;
+  
+  // 若未傳入匯率表或找不到對應幣別，回傳原金額
+  if (!rates || !rates[fromCurrency] || !rates[toCurrency]) return numericAmount;
+
+  // 經由 USD 當中間基準進行換算
+  const amountInUSD = numericAmount / rates[fromCurrency].rate;
+  const converted = amountInUSD * rates[toCurrency].rate;
+  
+  return converted;
+};
+
 function ExpenseList({
   searchQuery,
   setSearchQuery,
@@ -15,7 +30,9 @@ function ExpenseList({
   onBatchDelete,
   onClearAll,
   onOpenAddModal,
-  isDarkMode
+  isDarkMode,
+  baseCurrency = 'TWD', // 預設主要幣別
+  rates = {}            // 匯率資料表
 }) {
   const [selectedIds, setSelectedIds] = useState([]);
 
@@ -137,7 +154,7 @@ function ExpenseList({
       {/* 控制列 */}
       <div style={{
         display: 'flex',
-        justifyContent: 'space-between',
+        justify: 'space-between',
         alignItems: 'center',
         width: '100%',
         marginBottom: '14px',
@@ -212,41 +229,70 @@ function ExpenseList({
       ) : (
         sortedDates.map(dateKey => {
           const dateData = groupedDataByDate[dateKey];
+
+          // 重新計算「日小計」（自動換算為目前系統預設主要幣別 baseCurrency）
+          const calculatedDateTotal = dateData.items.reduce((sum, item) => {
+            const itemOrigCurrency = item.originalCurrency || item.currency || 'TWD';
+            const itemOrigAmount = Number(item.originalAmount || item.amount) || 0;
+            
+            const amountInBaseCurrency = convertAmount(itemOrigAmount, itemOrigCurrency, baseCurrency, rates);
+            return sum + (item.type === 'income' ? amountInBaseCurrency : -amountInBaseCurrency);
+          }, 0);
+
           return (
             <div key={dateKey} style={{ backgroundColor: isDarkMode ? '#1e2632' : '#ffffff', borderRadius: '16px', padding: '14px', border: isDarkMode ? '1.5px solid #3a4859' : '2px solid #1e3a8a', marginBottom: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: isDarkMode ? '1.5px dashed #3a4859' : '1.5px dashed #cbd5e1', paddingBottom: '8px', marginBottom: '8px' }}>
                 <span style={{ fontWeight: '700', fontSize: '13px', color: isDarkMode ? '#38bdf8' : '#1e3a8a' }}>📅 {dateKey}</span>
-                <span style={{ fontSize: '13px', fontWeight: '800', color: dateData.dateTotal >= 0 ? '#10b981' : '#f43f5e' }}>
-                  日小計: {dateData.dateTotal >= 0 ? '+' : ''}NT$ {dateData.dateTotal.toLocaleString()}
+                <span style={{ fontSize: '13px', fontWeight: '800', color: calculatedDateTotal >= 0 ? '#10b981' : '#f43f5e' }}>
+                  日小計: {calculatedDateTotal >= 0 ? '+' : ''}{baseCurrency} {calculatedDateTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                 </span>
               </div>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {dateData.items.map(item => (
-                  <li key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(item.id)}
-                        onChange={() => handleToggleSelect(item.id)}
-                        style={{ cursor: 'pointer', width: '15px', height: '15px' }}
-                      />
-                      <span style={{ fontSize: '11px', backgroundColor: isDarkMode ? '#2c3846' : '#f1f5f9', padding: '2px 8px', borderRadius: '10px', border: isDarkMode ? '1px solid #3a4859' : '1px solid #1e3a8a', color: isDarkMode ? '#38bdf8' : '#1e3a8a', fontWeight: '700' }}>{item.category}</span>
-                      <span style={{ fontWeight: '600', fontSize: '14px', color: isDarkMode ? '#f8fafc' : '#1e293b' }}>{item.name || item.category}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      {/* 💱 雙金額顯示邏輯 */}
-                      <strong style={{ fontSize: '14px', color: item.type === 'income' ? '#10b981' : '#f43f5e', marginRight: '4px' }}>
-                        {item.type === 'income' ? '+' : '-'} 
-                        {item.originalCurrency && item.originalCurrency !== 'TWD'
-                          ? `${item.originalCurrency} ${Number(item.originalAmount || item.amount).toLocaleString()} (NT$ ${item.amount.toLocaleString()})`
-                          : `NT$ ${item.amount.toLocaleString()}`
-                        }
-                      </strong>
-                      <button type="button" onClick={() => onEdit(item)} style={{ backgroundColor: isDarkMode ? '#0c4a6e' : '#e0f2fe', color: isDarkMode ? '#38bdf8' : '#0284c7', border: isDarkMode ? '1px solid #0284c7' : '1px solid #0284c7', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}>編輯</button>
-                      <button type="button" onClick={() => onDelete(item.id)} style={{ backgroundColor: isDarkMode ? '#451a1a' : '#fee2e2', color: isDarkMode ? '#fca5a5' : '#ef4444', border: isDarkMode ? '1px solid #991b1b' : '1px solid #ef4444', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}>刪除</button>
-                    </div>
-                  </li>
-                ))}
+                {dateData.items.map(item => {
+                  // 1. 取得該筆資料的原始幣別與原始金額
+                  const itemCurrency = item.originalCurrency || item.currency || 'TWD';
+                  const rawAmount = Number(item.originalAmount || item.amount) || 0;
+
+                  // 2. 判斷原始幣別是否與系統主要幣別相同
+                  const isSameWithBase = itemCurrency === baseCurrency;
+
+                  // 3. 若幣別不同，換算成主要幣別的金額
+                  const convertedAmount = isSameWithBase
+                    ? null
+                    : convertAmount(rawAmount, itemCurrency, baseCurrency, rates);
+
+                  return (
+                    <li key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(item.id)}
+                          onChange={() => handleToggleSelect(item.id)}
+                          style={{ cursor: 'pointer', width: '15px', height: '15px' }}
+                        />
+                        <span style={{ fontSize: '11px', backgroundColor: isDarkMode ? '#2c3846' : '#f1f5f9', padding: '2px 8px', borderRadius: '10px', border: isDarkMode ? '1.5px solid #3a4859' : '1px solid #1e3a8a', color: isDarkMode ? '#38bdf8' : '#1e3a8a', fontWeight: '700' }}>{item.category}</span>
+                        <span style={{ fontWeight: '600', fontSize: '14px', color: isDarkMode ? '#f8fafc' : '#1e293b' }}>{item.name || item.category}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {/* 💱 雙金額顯示邏輯 */}
+                        <strong style={{ fontSize: '14px', color: item.type === 'income' ? '#10b981' : '#f43f5e', marginRight: '4px' }}>
+                          {item.type === 'income' ? '+' : '-'}
+                          {/* 主要顯示：使用者當時輸入的幣別與金額 */}
+                          {itemCurrency} {rawAmount.toLocaleString()}
+
+                          {/* 括號顯示：若原始幣別與主要結算幣別不同，則換算後顯示 */}
+                          {!isSameWithBase && convertedAmount !== null && (
+                            <span style={{ fontSize: '12px', fontWeight: '600', opacity: 0.85, marginLeft: '5px' }}>
+                              (≈ {baseCurrency} {convertedAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })})
+                            </span>
+                          )}
+                        </strong>
+                        <button type="button" onClick={() => onEdit(item)} style={{ backgroundColor: isDarkMode ? '#0c4a6e' : '#e0f2fe', color: isDarkMode ? '#38bdf8' : '#0284c7', border: isDarkMode ? '1px solid #0284c7' : '1px solid #0284c7', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}>編輯</button>
+                        <button type="button" onClick={() => onDelete(item.id)} style={{ backgroundColor: isDarkMode ? '#451a1a' : '#fee2e2', color: isDarkMode ? '#fca5a5' : '#ef4444', border: isDarkMode ? '1px solid #991b1b' : '1px solid #ef4444', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}>刪除</button>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           );
