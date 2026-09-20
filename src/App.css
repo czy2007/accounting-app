@@ -1,0 +1,62 @@
+/* ==========================================
+   📱 Day 20：RWD 響應式網頁設計樣式表
+   ========================================== */
+
+/* 1. 全局重置，確保 padding 與 border 不會撐破外層容器 */
+* {
+  box-sizing: border-box;
+}
+
+/* 2. 平板與手機版樣式（螢幕寬度 <= 768px） */
+@media (max-width: 768px) {
+  /* 主容器改為垂直排列，並強制寬度 100% */
+  .main-layout {
+    flex-direction: column !important; /* 將左右兩欄改成上下垂直排列 */
+    gap: 20px !important;
+    width: 100% !important;
+  }
+
+  /* 🎯 關鍵修復：強制讓「當月明細」與「財務圖表」兩大區塊寬度完全一致 (100% 滿版) */
+  .main-layout > div,
+  .left-section,
+  .right-section {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 🎯 Header 控制列手機版彈性排版，避免按鈕爆框 */
+  .header-bar {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+
+  /* 控制列 (搜尋、篩選選單、按鈕) 轉為垂直排列 */
+  .responsive-control-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  /* 控制列內部的子元素在手機上撐滿整行 */
+  .responsive-control-bar > * {
+    width: 100% !important;
+  }
+
+  /* 按鈕組在手機上均分寬度，方便手指點擊 */
+  .responsive-btn-group {
+    display: flex !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+
+  .responsive-btn-group > button {
+    flex: 1 !important; /* 按鈕平均分配剩餘空間 */
+    justify-content: center !important;
+  }
+}

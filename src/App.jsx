@@ -5,6 +5,7 @@ import ExpenseList from './components/ExpenseList';
 import TotalCard from './components/TotalCard';
 // 🎯 1. 補上匯率工具函式引入
 import { fetchExchangeRates, DEFAULT_RATES } from './components/currencyUtils';
+import './App.css';
 
 function App() {
   const getTodayDate = () => {
@@ -40,7 +41,7 @@ function App() {
     setIsDarkMode(prev => !prev);
   };
 
-  // 🎯 2. 補上幣別與匯率狀態管理 (解決 ReferenceError: currency is not defined)
+  // 🎯 2. 幣別與匯率狀態管理
   const [currency, setCurrency] = useState('TWD');
   const [rates, setRates] = useState(DEFAULT_RATES);
 
@@ -149,7 +150,7 @@ function App() {
     setEditingId(null);
   };
 
-  // 🎯 3. 補上外幣換算為台幣的計算邏輯
+  // 🎯 3. 外幣換算為台幣的計算邏輯
   const handleAdd = (e) => {
     if (e) e.preventDefault();
     const numAmount = Number(amount);
@@ -424,8 +425,8 @@ function App() {
           onToggleDarkMode={handleToggleDarkMode}
         />
 
-        {/* 內容區域 */}
-        <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        {/* 內容區域：加上 className="main-layout" 以便套用 RWD 媒體查詢 */}
+        <div className="main-layout" style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
           {/* 左側記帳清單 */}
           <ExpenseList 
             searchQuery={searchQuery}
