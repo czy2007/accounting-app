@@ -3,6 +3,8 @@ import Header from './components/Header';
 import ExpenseForm from './components/ExpenseForm';
 import ExpenseList from './components/ExpenseList';
 import TotalCard from './components/TotalCard';
+// 🎯 1. 補上匯率工具函式引入
+import { fetchExchangeRates, DEFAULT_RATES } from './components/currencyUtils';
 
 function App() {
   const getTodayDate = () => {
@@ -37,6 +39,19 @@ function App() {
   const handleToggleDarkMode = () => {
     setIsDarkMode(prev => !prev);
   };
+
+  // 🎯 2. 補上幣別與匯率狀態管理 (解決 ReferenceError: currency is not defined)
+  const [currency, setCurrency] = useState('TWD');
+  const [rates, setRates] = useState(DEFAULT_RATES);
+
+  // 自動抓取最新匯率 API
+  useEffect(() => {
+    async function loadRates() {
+      const fetchedRates = await fetchExchangeRates();
+      setRates(fetchedRates);
+    }
+    loadRates();
+  }, []);
 
   // 1. 記帳資料狀態 (LocalStorage 持久化)
   const [items, setItems] = useState(() => {
@@ -105,21 +120,24 @@ function App() {
     setCurrentMonth(`${year}-${String(month).padStart(2, '0')}`);
   };
 
-  // 開關與清理表單
+  // 🎯 開關與清理表單 (重置幣別為 TWD)
   const handleOpenAddModal = () => {
     setEditingId(null);
     setName('');
     setAmount('');
+    setCurrency('TWD');
     setDate(getTodayDate());
     setType('expense');
     setCategory('🍔 餐飲');
     setIsModalOpen(true);
   };
 
+  // 🎯 點擊編輯時，載入項目的原始外幣與金額
   const handleEdit = (item) => {
     setEditingId(item.id);
     setName(item.name || '');
-    setAmount(item.amount);
+    setAmount(item.originalAmount || item.amount);
+    setCurrency(item.originalCurrency || 'TWD');
     setCategory(item.category);
     setType(item.type);
     setDate(item.date || getTodayDate());
@@ -131,29 +149,54 @@ function App() {
     setEditingId(null);
   };
 
+  // 🎯 3. 補上外幣換算為台幣的計算邏輯
   const handleAdd = (e) => {
     if (e) e.preventDefault();
-    if (!amount) {
+    const numAmount = Number(amount);
+
+    if (!numAmount) {
       alert('請填寫金額！');
       return;
     }
-    if (Number(amount) <= 0) {
+    if (numAmount <= 0) {
       alert('金額必須大於 0 元！');
       return;
     }
+
+    // 計算折合台幣 (TWD) 金額
+    const currentRate = rates[currency]?.rate || 1;
+    const amountInTWD = currency === 'TWD' ? numAmount : Math.round(numAmount / currentRate);
 
     if (editingId) {
       setItems(prevItems =>
         prevItems.map(item =>
           item.id === editingId
-            ? { ...item, name: name.trim(), amount: Number(amount), category, type, date }
+            ? { 
+                ...item, 
+                name: name.trim(), 
+                originalAmount: numAmount,
+                originalCurrency: currency,
+                amount: amountInTWD, 
+                category, 
+                type, 
+                date 
+              }
             : item
         )
       );
     } else {
       setItems(prevItems => [
-        ...prevItems,
-        { id: Date.now(), name: name.trim(), amount: Number(amount), category, type, date }
+        { 
+          id: Date.now(), 
+          name: name.trim(), 
+          originalAmount: numAmount,
+          originalCurrency: currency,
+          amount: amountInTWD, 
+          category, 
+          type, 
+          date 
+        },
+        ...prevItems
       ]);
     }
 
@@ -320,20 +363,22 @@ function App() {
     }
   };
 
-  // 匯出 CSV 檔案函式
+  // 匯出 CSV 檔案函式 (包含外幣資訊)
   const handleExportCSV = () => {
     if (items.length === 0) {
       alert('目前沒有任何記帳紀錄可供匯出！');
       return;
     }
 
-    const headers = ['日期', '類型', '分類', '名稱/備註', '金額'];
+    const headers = ['日期', '類型', '分類', '名稱/備註', '幣別', '外幣金額', '折合台幣(TWD)'];
 
     const rows = items.map(item => [
       item.date || '',
       item.type === 'income' ? '收入' : '支出',
       item.category || '',
       `"${(item.name || '').replace(/"/g, '""')}"`,
+      item.originalCurrency || 'TWD',
+      item.originalAmount || item.amount || 0,
       item.amount || 0
     ]);
 
@@ -430,6 +475,9 @@ function App() {
         setAmount={setAmount}
         name={name}
         setName={setName}
+        currency={currency}
+        setCurrency={setCurrency}  
+        rates={rates}
         isDarkMode={isDarkMode}
       />
     </div>

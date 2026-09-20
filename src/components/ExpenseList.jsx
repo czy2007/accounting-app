@@ -17,10 +17,8 @@ function ExpenseList({
   onOpenAddModal,
   isDarkMode
 }) {
-  // 記憶目前被勾選的 item id 陣列
   const [selectedIds, setSelectedIds] = useState([]);
 
-  // 1. 取得當前畫面上「所有顯示中」的帳目 ID 陣列（用來做全選判斷）
   const visibleAllIds = useMemo(() => {
     let ids = [];
     sortedDates.forEach((dateKey) => {
@@ -33,14 +31,12 @@ function ExpenseList({
     return ids;
   }, [sortedDates, groupedDataByDate]);
 
-  // 單一勾選 / 取消勾選
   const handleToggleSelect = (id) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
 
-  // 全選 / 取消全選當前畫面的帳目
   const handleSelectAll = () => {
     if (visibleAllIds.length === 0) return;
     const isAllSelected = visibleAllIds.every((id) => selectedIds.includes(id));
@@ -52,12 +48,11 @@ function ExpenseList({
     }
   };
 
-  // 執行批次刪除
   const handleExecuteBatchDelete = () => {
     if (selectedIds.length === 0) return;
     if (onBatchDelete) {
       onBatchDelete(selectedIds);
-      setSelectedIds([]); // 刪除完後重置勾選
+      setSelectedIds([]);
     }
   };
 
@@ -67,7 +62,6 @@ function ExpenseList({
   return (
     <div style={{
       flex: '1 1 450px',
-      // 🎯 外卡片背景深淺對齊右側財務分析
       backgroundColor: isDarkMode ? '#2c3846' : '#ffffff',
       color: isDarkMode ? '#f8fafc' : '#0f172a',
       padding: '24px',
@@ -87,7 +81,6 @@ function ExpenseList({
           style={{
             width: '100%', padding: '12px 14px', borderRadius: '14px',
             border: isDarkMode ? '1.5px solid #3a4859' : '2px solid #1e3a8a',
-            // 🎯 內部搜尋框底色對齊
             backgroundColor: isDarkMode ? '#1e2632' : '#f8fafc',
             color: isDarkMode ? '#f8fafc' : '#0f172a',
             fontSize: '14px', outline: 'none', boxSizing: 'border-box'
@@ -141,10 +134,10 @@ function ExpenseList({
         </select>
       </div>
 
-      {/* 🎯 控制列：全選靠最左，一鍵清空/批次刪除靠最右 */}
+      {/* 控制列 */}
       <div style={{
         display: 'flex',
-        justify: 'space-between',
+        justifyContent: 'space-between',
         alignItems: 'center',
         width: '100%',
         marginBottom: '14px',
@@ -154,7 +147,6 @@ function ExpenseList({
         border: isDarkMode ? '1.5px solid #3a4859' : '1.5px solid #cbd5e1',
         boxSizing: 'border-box'
       }}>
-        {/* 左側：全選 */}
         <label style={{ cursor: 'pointer', userSelect: 'none', fontSize: '13px', fontWeight: '700', color: isDarkMode ? '#f8fafc' : '#1e3a8a', display: 'flex', alignItems: 'center', gap: '6px' }}>
           <input
             type="checkbox"
@@ -166,7 +158,6 @@ function ExpenseList({
           全選 ({selectedIds.length}/{visibleAllIds.length})
         </label>
 
-        {/* 右側：動作按鈕群組 */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: 'auto' }}>
           {selectedIds.length > 0 && (
             <button
@@ -243,8 +234,13 @@ function ExpenseList({
                       <span style={{ fontWeight: '600', fontSize: '14px', color: isDarkMode ? '#f8fafc' : '#1e293b' }}>{item.name || item.category}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {/* 💱 雙金額顯示邏輯 */}
                       <strong style={{ fontSize: '14px', color: item.type === 'income' ? '#10b981' : '#f43f5e', marginRight: '4px' }}>
-                        {item.type === 'income' ? '+' : '-'} NT$ {item.amount.toLocaleString()}
+                        {item.type === 'income' ? '+' : '-'} 
+                        {item.originalCurrency && item.originalCurrency !== 'TWD'
+                          ? `${item.originalCurrency} ${Number(item.originalAmount || item.amount).toLocaleString()} (NT$ ${item.amount.toLocaleString()})`
+                          : `NT$ ${item.amount.toLocaleString()}`
+                        }
                       </strong>
                       <button type="button" onClick={() => onEdit(item)} style={{ backgroundColor: isDarkMode ? '#0c4a6e' : '#e0f2fe', color: isDarkMode ? '#38bdf8' : '#0284c7', border: isDarkMode ? '1px solid #0284c7' : '1px solid #0284c7', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}>編輯</button>
                       <button type="button" onClick={() => onDelete(item.id)} style={{ backgroundColor: isDarkMode ? '#451a1a' : '#fee2e2', color: isDarkMode ? '#fca5a5' : '#ef4444', border: isDarkMode ? '1px solid #991b1b' : '1px solid #ef4444', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}>刪除</button>
