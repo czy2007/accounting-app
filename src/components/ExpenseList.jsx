@@ -1,16 +1,28 @@
 import React, { useState, useMemo } from 'react';
 
-// 輔助函式：動態匯率換算
+// 輔助函式：動態匯率換算（加入安全備用匯率，防止 1:1 錯誤）
 const convertAmount = (amount, fromCurrency, toCurrency, rates) => {
   const numericAmount = Number(amount) || 0;
   if (!fromCurrency || !toCurrency || fromCurrency === toCurrency) return numericAmount;
   
-  // 若未傳入匯率表或找不到對應幣別，回傳原金額
-  if (!rates || !rates[fromCurrency] || !rates[toCurrency]) return numericAmount;
+  // 1. 定義備用安全匯率表 (以 USD 為 1 基準)
+  const fallbackRates = {
+    USD: 1,
+    TWD: 32.5,
+    JPY: 155,
+    EUR: 0.92,
+    GBP: 0.78,
+    CNY: 7.25,
+    HKD: 7.8
+  };
 
-  // 經由 USD 當中間基準進行換算
-  const amountInUSD = numericAmount / rates[fromCurrency].rate;
-  const converted = amountInUSD * rates[toCurrency].rate;
+  // 2. 優先從傳入的 rates 取得匯率，若拿不到則採用備用匯率
+  const fromRate = rates?.[fromCurrency]?.rate || fallbackRates[fromCurrency] || 1;
+  const toRate = rates?.[toCurrency]?.rate || fallbackRates[toCurrency] || 1;
+
+  // 3. 交叉換算：原幣別 -> USD -> 目標幣別
+  const amountInUSD = numericAmount / fromRate;
+  const converted = amountInUSD * toRate;
   
   return converted;
 };
@@ -154,7 +166,7 @@ function ExpenseList({
       {/* 控制列 */}
       <div style={{
         display: 'flex',
-        justify: 'space-between',
+        justifyContent: 'space-between',
         alignItems: 'center',
         width: '100%',
         marginBottom: '14px',
@@ -191,7 +203,7 @@ function ExpenseList({
                 cursor: 'pointer'
               }}
             >
-              🚨 一鍵清空 ({selectedIds.length})
+              🚨 刪除選取 ({selectedIds.length})
             </button>
           )}
 
@@ -244,7 +256,7 @@ function ExpenseList({
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: isDarkMode ? '1.5px dashed #3a4859' : '1.5px dashed #cbd5e1', paddingBottom: '8px', marginBottom: '8px' }}>
                 <span style={{ fontWeight: '700', fontSize: '13px', color: isDarkMode ? '#38bdf8' : '#1e3a8a' }}>📅 {dateKey}</span>
                 <span style={{ fontSize: '13px', fontWeight: '800', color: calculatedDateTotal >= 0 ? '#10b981' : '#f43f5e' }}>
-                  日小計: {calculatedDateTotal >= 0 ? '+' : ''}{baseCurrency} {calculatedDateTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                  日小計: {baseCurrency} {calculatedDateTotal >= 0 ? '+' : ''}{calculatedDateTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                 </span>
               </div>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>

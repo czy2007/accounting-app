@@ -7,13 +7,14 @@ function Navbar({ isDarkMode }) {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '6px',
-    padding: '10px 16px',
+    gap: '4px',
+    padding: '10px 8px', // 微調 padding 讓 4 個按鈕在手機上完美排開
     borderRadius: '12px',
     textDecoration: 'none',
     fontWeight: '700',
-    fontSize: '15px',
+    fontSize: '14px',
     transition: 'all 0.2s ease',
+    whiteSpace: 'nowrap',
     color: isActive 
       ? '#ffffff' 
       : isDarkMode ? '#94a3b8' : '#475569',
@@ -35,7 +36,7 @@ function Navbar({ isDarkMode }) {
           display: flex;
           justify-content: space-around;
           align-items: center;
-          padding: 8px 12px;
+          padding: 8px 10px;
           box-sizing: border-box;
           background-color: ${isDarkMode ? 'rgba(30, 41, 59, 0.98)' : 'rgba(255, 255, 255, 0.98)'};
           backdrop-filter: blur(10px);
@@ -67,6 +68,9 @@ function Navbar({ isDarkMode }) {
         </NavLink>
         <NavLink to="/stats" style={linkStyle}>
           <span>📊</span> 財務分析
+        </NavLink>
+        <NavLink to="/history" style={linkStyle}>
+          <span>📅</span> 歷史月報
         </NavLink>
         <NavLink to="/settings" style={linkStyle}>
           <span>⚙️</span> 系統設定

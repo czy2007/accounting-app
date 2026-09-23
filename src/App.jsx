@@ -10,6 +10,7 @@ import './App.css';
 import HomePage from './pages/HomePage';
 import StatsPage from './pages/StatsPage';
 import SettingsPage from './pages/SettingsPage';
+import HistoryPage from './pages/HistoryPage'; // 👈 1. 引入歷史月報頁面
 
 function App() {
   const getTodayDate = () => {
@@ -77,17 +78,14 @@ function App() {
     if (window.confirm(`確定要將系統主要貨幣變更為 ${newBaseCurrency} 嗎？所有過往紀錄金額將會自動依當前匯率重新計算。`)) {
       setBaseCurrency(newBaseCurrency);
       
-      // 當主要貨幣變更時，重新計算所有項目的主要幣別金額 (amount)
       setItems(prevItems => prevItems.map(item => {
         const origCurrency = item.originalCurrency || 'TWD';
         const origAmount = item.originalAmount || item.amount;
 
-        // 若原始幣別即為新的基準幣別
         if (origCurrency === newBaseCurrency) {
           return { ...item, amount: origAmount };
         }
 
-        // 經由台幣交叉換算
         const origRate = rates[origCurrency]?.rate || 1;
         const newBaseRate = rates[newBaseCurrency]?.rate || 1;
 
@@ -172,7 +170,7 @@ function App() {
     setEditingId(null);
     setName('');
     setAmount('');
-    setCurrency(baseCurrency); // 預設帶入設定的主要貨幣
+    setCurrency(baseCurrency);
     setDate(getTodayDate());
     setType('expense');
     setCategory('🍔 餐飲');
@@ -208,7 +206,6 @@ function App() {
       return;
     }
 
-    // 計算折合主要幣別金額
     let calculatedAmount = numAmount;
 
     if (currency !== baseCurrency) {
@@ -515,6 +512,21 @@ function App() {
                   dailyTrendData={dailyTrendData}
                   isDarkMode={isDarkMode}
                   baseCurrency={baseCurrency}
+                />
+              } 
+            />
+
+            {/* 👈 2. 新增歷史月報路由 */}
+            <Route 
+              path="/history" 
+              element={
+                <HistoryPage 
+                  items={items}
+                  isDarkMode={isDarkMode}
+                  baseCurrency={baseCurrency}
+                  rates={rates}
+                  currentMonth={currentMonth}
+                  onSelectMonth={(m) => setCurrentMonth(m)}
                 />
               } 
             />
