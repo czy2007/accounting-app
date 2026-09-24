@@ -8,11 +8,11 @@ function Navbar({ isDarkMode }) {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '4px',
-    padding: '10px 8px', // 微調 padding 讓 4 個按鈕在手機上完美排開
+    padding: '10px 4px',
     borderRadius: '12px',
     textDecoration: 'none',
     fontWeight: '700',
-    fontSize: '14px',
+    fontSize: '13px',
     transition: 'all 0.2s ease',
     whiteSpace: 'nowrap',
     color: isActive 
@@ -36,7 +36,7 @@ function Navbar({ isDarkMode }) {
           display: flex;
           justify-content: space-around;
           align-items: center;
-          padding: 8px 10px;
+          padding: 8px 6px;
           box-sizing: border-box;
           background-color: ${isDarkMode ? 'rgba(30, 41, 59, 0.98)' : 'rgba(255, 255, 255, 0.98)'};
           backdrop-filter: blur(10px);
@@ -64,16 +64,19 @@ function Navbar({ isDarkMode }) {
 
       <nav className="responsive-navbar">
         <NavLink to="/" style={linkStyle}>
-          <span>📝</span> 記帳明細
+          <span>📝</span> 明細
         </NavLink>
         <NavLink to="/stats" style={linkStyle}>
-          <span>📊</span> 財務分析
+          <span>📊</span> 分析
+        </NavLink>
+        <NavLink to="/wallets" style={linkStyle}>
+          <span>👛</span> 錢包與目標
         </NavLink>
         <NavLink to="/history" style={linkStyle}>
-          <span>📅</span> 歷史月報
+          <span>📅</span> 月報
         </NavLink>
         <NavLink to="/settings" style={linkStyle}>
-          <span>⚙️</span> 系統設定
+          <span>⚙️</span> 設定
         </NavLink>
       </nav>
     </>

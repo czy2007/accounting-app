@@ -25,7 +25,7 @@ function ExpenseForm({
 
   // 確保 rates 有資料，避開 undefined 崩潰
   const currentRates = rates || DEFAULT_RATES;
-  const selectedCurrencyInfo = currentRates[currency] || DEFAULT_RATES[currency] || DEFAULT_RATES.TWD;
+  const selectedCurrencyInfo = currentRates[currency] || DEFAULT_RATES[currency] || DEFAULT_RATES.TWD || { rate: 1, symbol: 'NT$' };
   const currentRate = selectedCurrencyInfo.rate || 1;
 
   // 安全計算折合台幣
@@ -48,6 +48,7 @@ function ExpenseForm({
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
         border: isDarkMode ? '1.5px solid #3a4859' : '2.5px solid #1e3a8a'
       }}>
+        {/* 標題與關閉按鈕 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: isDarkMode ? '#38bdf8' : '#1e3a8a' }}>
             {editingId ? '✏️ 編輯記帳' : '➕ 新增記帳'}
@@ -162,7 +163,7 @@ function ExpenseForm({
             >
               {Object.keys(currentRates).map((code) => (
                 <option key={code} value={code}>
-                  {currentRates[code].symbol} {code}
+                  {currentRates[code]?.symbol || ''} {code}
                 </option>
               ))}
             </select>
@@ -193,6 +194,7 @@ function ExpenseForm({
             }}
           />
 
+          {/* 送出與取消按鈕 */}
           <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
             <button
               type="button"

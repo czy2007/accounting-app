@@ -10,7 +10,8 @@ import './App.css';
 import HomePage from './pages/HomePage';
 import StatsPage from './pages/StatsPage';
 import SettingsPage from './pages/SettingsPage';
-import HistoryPage from './pages/HistoryPage'; // 👈 1. 引入歷史月報頁面
+import HistoryPage from './pages/HistoryPage';
+import WalletsPage from './pages/WalletsPage';
 
 function App() {
   const getTodayDate = () => {
@@ -46,7 +47,7 @@ function App() {
     setIsDarkMode(prev => !prev);
   };
 
-  // 1. 主要基準貨幣（預設 TWD）
+  // 主要基準貨幣（預設 TWD）
   const [baseCurrency, setBaseCurrency] = useState(() => {
     try {
       return localStorage.getItem('accounting_base_currency') || 'TWD';
@@ -62,16 +63,24 @@ function App() {
   // 幣別與匯率狀態管理
   const [currency, setCurrency] = useState(baseCurrency);
   const [rates, setRates] = useState(DEFAULT_RATES);
+  const [isRatesLoading, setIsRatesLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState('');
+  const [isFallback, setIsFallback] = useState(false);
+
+  // 載入與更新匯率函式
+  const loadRates = async (force = false) => {
+    setIsRatesLoading(true);
+    const result = await fetchExchangeRates(baseCurrency, force);
+    setRates(result.rates);
+    setLastUpdated(result.lastUpdated || '');
+    setIsFallback(result.isFallback || false);
+    setIsRatesLoading(false);
+  };
 
   useEffect(() => {
-    async function loadRates() {
-      const fetchedRates = await fetchExchangeRates();
-      setRates(fetchedRates);
-    }
     loadRates();
-  }, []);
+  }, [baseCurrency]);
 
-  // 切換主要貨幣處理邏輯
   const handleBaseCurrencyChange = (newBaseCurrency) => {
     if (newBaseCurrency === baseCurrency) return;
 
@@ -99,6 +108,20 @@ function App() {
       }));
     }
   };
+
+  // 🎯 存錢目標狀態管理
+  const [goals, setGoals] = useState(() => {
+    try {
+      const saved = localStorage.getItem('accounting_goals');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('accounting_goals', JSON.stringify(goals));
+  }, [goals]);
 
   // 記帳資料狀態
   const [items, setItems] = useState(() => {
@@ -228,7 +251,7 @@ function App() {
                 amount: calculatedAmount, 
                 category, 
                 type, 
-                date 
+                date
               }
             : item
         )
@@ -243,7 +266,7 @@ function App() {
           amount: calculatedAmount, 
           category, 
           type, 
-          date 
+          date
         },
         ...prevItems
       ]);
@@ -254,6 +277,68 @@ function App() {
 
   const handleDelete = (id) => {
     setItems(items.filter(item => item.id !== id));
+  };
+
+  // 🎯 新增存錢目標
+  const handleAddGoal = (newGoal) => {
+    setGoals(prev => [...prev, { ...newGoal, id: `g_${Date.now()}` }]);
+
+    const initAmt = Number(newGoal.currentAmount || 0);
+    if (initAmt > 0) {
+      const initExpense = {
+        id: Date.now(),
+        name: `存入目標：${newGoal.name}`,
+        originalAmount: initAmt,
+        originalCurrency: baseCurrency,
+        amount: initAmt,
+        category: '💡 雜項',
+        type: 'expense',
+        date: getTodayDate()
+      };
+      setItems(prev => [initExpense, ...prev]);
+    }
+  };
+
+  // 🎯 編輯存錢目標
+  const handleEditGoal = (updatedGoal) => {
+    setGoals(prev => prev.map(g => g.id === updatedGoal.id ? updatedGoal : g));
+  };
+
+  // 🎯 刪除存錢目標
+  const handleDeleteGoal = (id) => {
+    if (window.confirm('確定要刪除這個存錢目標嗎？')) {
+      setGoals(prev => prev.filter(g => g.id !== id));
+    }
+  };
+
+  // 🎯 存入資金
+  const handleDepositGoal = (goalId, depositAmount) => {
+    const numAmt = Number(depositAmount);
+    if (!numAmt || numAmt <= 0) {
+      alert('請輸入正確的存入金額！');
+      return;
+    }
+
+    const targetGoal = goals.find(g => g.id === goalId);
+    
+    const newExpense = {
+      id: Date.now(),
+      name: `存入目標：${targetGoal?.name || '存錢目標'}`,
+      originalAmount: numAmt,
+      originalCurrency: baseCurrency,
+      amount: numAmt,
+      category: '💡 雜項',
+      type: 'expense',
+      date: getTodayDate()
+    };
+    setItems(prev => [newExpense, ...prev]);
+
+    setGoals(prev => prev.map(g => {
+      if (g.id === goalId) {
+        return { ...g, currentAmount: Number(g.currentAmount || 0) + numAmt };
+      }
+      return g;
+    }));
   };
 
   const currentMonthItems = useMemo(() => {
@@ -406,15 +491,17 @@ function App() {
 
     const headers = ['日期', '類型', '分類', '名稱/備註', '幣別', '外幣金額', `折合主要幣別(${baseCurrency})`];
 
-    const rows = items.map(item => [
-      item.date || '',
-      item.type === 'income' ? '收入' : '支出',
-      item.category || '',
-      `"${(item.name || '').replace(/"/g, '""')}"`,
-      item.originalCurrency || baseCurrency,
-      item.originalAmount || item.amount || 0,
-      item.amount || 0
-    ]);
+    const rows = items.map(item => {
+      return [
+        item.date || '',
+        item.type === 'income' ? '收入' : '支出',
+        item.category || '',
+        `"${(item.name || '').replace(/"/g, '""')}"`,
+        item.originalCurrency || baseCurrency,
+        item.originalAmount || item.amount || 0,
+        item.amount || 0
+      ];
+    });
 
     const csvContent = '\uFEFF' + [
       headers.join(','),
@@ -460,7 +547,6 @@ function App() {
       `}</style>
 
       <div style={{ maxWidth: '960px', margin: '0 auto' }}>
-        {/* 頂部 Header */}
         <Header 
           currentMonth={currentMonth} 
           onMonthChange={handleMonthChange} 
@@ -469,10 +555,8 @@ function App() {
           onToggleDarkMode={handleToggleDarkMode}
         />
 
-        {/* 導覽列 */}
         <Navbar isDarkMode={isDarkMode} />
 
-        {/* 內容區域 */}
         <div className="main-layout" style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <Routes>
             <Route 
@@ -516,7 +600,22 @@ function App() {
               } 
             />
 
-            {/* 👈 2. 新增歷史月報路由 */}
+            <Route 
+              path="/wallets" 
+              element={
+                <WalletsPage 
+                  goals={goals}
+                  items={items}
+                  isDarkMode={isDarkMode}
+                  baseCurrency={baseCurrency}
+                  onAddGoal={handleAddGoal}
+                  onEditGoal={handleEditGoal}
+                  onDeleteGoal={handleDeleteGoal}
+                  onDepositGoal={handleDepositGoal}
+                />
+              } 
+            />
+
             <Route 
               path="/history" 
               element={
@@ -541,6 +640,10 @@ function App() {
                   baseCurrency={baseCurrency}
                   onBaseCurrencyChange={handleBaseCurrencyChange}
                   rates={rates}
+                  isRatesLoading={isRatesLoading}
+                  lastUpdated={lastUpdated}
+                  isFallback={isFallback}
+                  onRefreshRates={() => loadRates(true)}
                 />
               } 
             />
@@ -548,7 +651,6 @@ function App() {
         </div>
       </div>
 
-      {/* 新增/編輯 Modal */}
       <ExpenseForm 
         isOpen={isModalOpen}
         onClose={handleCloseModal}
@@ -562,8 +664,10 @@ function App() {
         setCategory={setCategory}
         amount={amount}
         setAmount={setAmount}
+        name={name}
+        setName={setName}
         currency={currency}
-        setCurrency={setCurrency}  
+        setCurrency={setCurrency}
         rates={rates}
         isDarkMode={isDarkMode}
         baseCurrency={baseCurrency}
