@@ -1,0 +1,147 @@
+// src/i18n.js
+export const translations = {
+  'zh-TW': {
+    appName: '星空記帳本',
+    navHome: '明細',
+    navStats: '統計',
+    navWallets: '錢包',
+    navHistory: '歷史',
+    navSettings: '設定',
+
+    settingsTitle: '系統設定',
+    themeSetting: '深色模式',
+    themeDesc: '切換深色與淺色主題色彩',
+    baseCurrencySetting: '主要結算貨幣',
+    baseCurrencyDesc: '變更全站紀錄顯示之基準貨幣',
+    languageSetting: '介面語言',
+    languageDesc: '切換系統顯示語言',
+    refreshRates: '強制更新即時匯率',
+    exportCSV: '匯出 CSV 備份資料',
+
+    addRecord: '新增記帳',
+    save: '儲存',
+    cancel: '取消',
+    income: '收入',
+    expense: '支出',
+    totalIncome: '總收入',
+    totalExpense: '總支出',
+    netBalance: '淨結餘',
+
+    // Toast 訊息
+    langChanged: '已切換為繁體中文',
+    ratesUpdated: '即時匯率已成功更新！',
+    currencyChanged: '主要貨幣已變更為',
+    itemAdded: '新增記帳成功！',
+    itemUpdated: '紀錄更新成功！',
+    itemDeleted: '已刪除紀錄',
+    csvExported: '備份檔案已順利匯出下載！'
+  },
+  'en': {
+    appName: 'Starry Tracker',
+    navHome: 'Transactions',
+    navStats: 'Stats',
+    navWallets: 'Wallets',
+    navHistory: 'History',
+    navSettings: 'Settings',
+
+    settingsTitle: 'Settings',
+    themeSetting: 'Dark Mode',
+    themeDesc: 'Switch between dark and light themes',
+    baseCurrencySetting: 'Base Currency',
+    baseCurrencyDesc: 'Change default currency for all calculations',
+    languageSetting: 'Language',
+    languageDesc: 'Choose your preferred language',
+    refreshRates: 'Update Exchange Rates',
+    exportCSV: 'Export CSV Backup',
+
+    addRecord: 'Add Record',
+    save: 'Save',
+    cancel: 'Cancel',
+    income: 'Income',
+    expense: 'Expense',
+    totalIncome: 'Total Income',
+    totalExpense: 'Total Expense',
+    netBalance: 'Net Balance',
+
+    // Toast Messages
+    langChanged: 'Language changed to English',
+    ratesUpdated: 'Exchange rates updated successfully!',
+    currencyChanged: 'Base currency changed to',
+    itemAdded: 'Transaction added successfully!',
+    itemUpdated: 'Record updated successfully!',
+    itemDeleted: 'Record deleted',
+    csvExported: 'CSV Backup exported successfully!'
+  },
+  'ja': {
+    appName: '星空家計簿',
+    navHome: '明細',
+    navStats: '統計',
+    navWallets: 'ウォレット',
+    navHistory: '履歴',
+    navSettings: '設定',
+
+    settingsTitle: 'システム設定',
+    themeSetting: 'ダークモード',
+    themeDesc: 'ダークテーマとライトテーマを切り替えます',
+    baseCurrencySetting: '主要決済通貨',
+    baseCurrencyDesc: 'すべての計算で使用する基準通貨を変更します',
+    languageSetting: '表示言語',
+    languageDesc: '表示言語を選択します',
+    refreshRates: '為替レートを強制更新',
+    exportCSV: 'CSVバックアップを出力',
+
+    addRecord: '記録を追加',
+    save: '保存',
+    cancel: 'キャンセル',
+    income: '収入',
+    expense: '支出',
+    totalIncome: '総収入',
+    totalExpense: '総支出',
+    netBalance: '純収支',
+
+    // Toast Messages
+    langChanged: '言語を日本語に変更しました',
+    ratesUpdated: '為替レートが正常に更新されました！',
+    currencyChanged: '基準通貨が次のように変更されました：',
+    itemAdded: '取引を追加しました！',
+    itemUpdated: '記録を更新しました！',
+    itemDeleted: '記録を削除しました',
+    csvExported: 'バックアップファイルをエクスポートしました！'
+  },
+  'ko': {
+    appName: '별빛 가계부',
+    navHome: '내역',
+    navStats: '통계',
+    navWallets: '지갑',
+    navHistory: '기록',
+    navSettings: '설정',
+
+    settingsTitle: '시스템 설정',
+    themeSetting: '다크 모드',
+    themeDesc: '다크 테마와 라이트 테마를 전환합니다',
+    baseCurrencySetting: '기본 결제 통화',
+    baseCurrencyDesc: '모든 계산에 사용되는 기준 통화를 변경합니다',
+    languageSetting: '인터페이스 언어',
+    languageDesc: '표시 언어를 선택하세요',
+    refreshRates: '환율 강제 업데이트',
+    exportCSV: 'CSV 백업 내보내기',
+
+    addRecord: '기록 추가',
+    save: '저장',
+    cancel: '취소',
+    income: '수입',
+    expense: '지출',
+    totalIncome: '총 수입',
+    totalExpense: '총 지출',
+    netBalance: '순 잔액',
+
+    // Toast Messages
+    langChanged: '언어가 한국어로 변경되었습니다',
+    ratesUpdated: '환율 정보가 성공적으로 업데이트되었습니다!',
+    currencyChanged: '기본 통화가 변경되었습니다:',
+    itemAdded: '거래가 성공적으로 추가되었습니다!',
+    itemUpdated: '기록이 성공적으로 업데이트되었습니다!',
+    itemDeleted: '기록이 삭제되었습니다',
+    csvExported: '백업 파일이 성공적으로 내보내졌습니다!'
+  }
+};

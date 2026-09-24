@@ -3,7 +3,10 @@ import { Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 import Navbar from './components/Navbar';
 import ExpenseForm from './components/ExpenseForm';
+import Toast from './components/Toast';
+import LoadingSpinner from './components/LoadingSpinner';
 import { fetchExchangeRates, DEFAULT_RATES } from './components/currencyUtils';
+import { translations } from './i18n';
 import './App.css';
 
 // 引入頁面組件
@@ -27,6 +30,43 @@ function App() {
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, '0');
     return `${year}-${month}`;
+  };
+
+  // 🌐 語言設定狀態 (預設 繁體中文 zh-TW)
+  const [lang, setLang] = useState(() => {
+    try {
+      return localStorage.getItem('accounting_lang') || 'zh-TW';
+    } catch (e) {
+      return 'zh-TW';
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('accounting_lang', lang);
+  }, [lang]);
+
+  // 取得當前語言的字典包
+  const t = translations[lang] || translations['zh-TW'];
+
+  const handleLanguageChange = (newLang) => {
+    setLang(newLang);
+    const msg = newLang === 'zh-TW' ? translations['zh-TW'].langChanged : translations['en'].langChanged;
+    showToast(msg, 'success');
+  };
+
+  // Toast 提示通知狀態
+  const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
+
+  // 顯示 Toast 提示視窗 (預設 3 秒後自動隱藏)
+  const showToast = (message, type = 'info', duration = 3000) => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: '', type: 'info' });
+    }, duration);
+  };
+
+  const handleCloseToast = () => {
+    setToast({ show: false, message: '', type: 'info' });
   };
 
   // 暗黑模式狀態
@@ -75,6 +115,10 @@ function App() {
     setLastUpdated(result.lastUpdated || '');
     setIsFallback(result.isFallback || false);
     setIsRatesLoading(false);
+
+    if (force) {
+      showToast(t.ratesUpdated, 'success');
+    }
   };
 
   useEffect(() => {
@@ -106,6 +150,8 @@ function App() {
           amount: amountInNewBase
         };
       }));
+
+      showToast(`${t.currencyChanged} ${newBaseCurrency}`, 'info');
     }
   };
 
@@ -221,11 +267,11 @@ function App() {
     const numAmount = Number(amount);
 
     if (!numAmount) {
-      alert('請填寫金額！');
+      showToast(lang === 'zh-TW' ? '請填寫金額！' : 'Please enter an amount!', 'warning');
       return;
     }
     if (numAmount <= 0) {
-      alert('金額必須大於 0 元！');
+      showToast(lang === 'zh-TW' ? '金額必須大於 0 元！' : 'Amount must be greater than 0!', 'warning');
       return;
     }
 
@@ -256,6 +302,7 @@ function App() {
             : item
         )
       );
+      showToast(t.itemUpdated, 'success');
     } else {
       setItems(prevItems => [
         { 
@@ -270,6 +317,7 @@ function App() {
         },
         ...prevItems
       ]);
+      showToast(t.itemAdded, 'success');
     }
 
     handleCloseModal();
@@ -277,9 +325,10 @@ function App() {
 
   const handleDelete = (id) => {
     setItems(items.filter(item => item.id !== id));
+    showToast(t.itemDeleted, 'info');
   };
 
-  // 🎯 新增存錢目標
+  // 🎯 存錢目標控制
   const handleAddGoal = (newGoal) => {
     setGoals(prev => [...prev, { ...newGoal, id: `g_${Date.now()}` }]);
 
@@ -297,25 +346,26 @@ function App() {
       };
       setItems(prev => [initExpense, ...prev]);
     }
+
+    showToast(lang === 'zh-TW' ? '已建立存錢目標！' : 'Savings goal created!', 'success');
   };
 
-  // 🎯 編輯存錢目標
   const handleEditGoal = (updatedGoal) => {
     setGoals(prev => prev.map(g => g.id === updatedGoal.id ? updatedGoal : g));
+    showToast(lang === 'zh-TW' ? '目標變更已儲存' : 'Goal updated', 'success');
   };
 
-  // 🎯 刪除存錢目標
   const handleDeleteGoal = (id) => {
-    if (window.confirm('確定要刪除這個存錢目標嗎？')) {
+    if (window.confirm(lang === 'zh-TW' ? '確定要刪除這個存錢目標嗎？' : 'Are you sure you want to delete this goal?')) {
       setGoals(prev => prev.filter(g => g.id !== id));
+      showToast(lang === 'zh-TW' ? '已刪除存錢目標' : 'Goal deleted', 'info');
     }
   };
 
-  // 🎯 存入資金
   const handleDepositGoal = (goalId, depositAmount) => {
     const numAmt = Number(depositAmount);
     if (!numAmt || numAmt <= 0) {
-      alert('請輸入正確的存入金額！');
+      showToast(lang === 'zh-TW' ? '請輸入正確的存入金額！' : 'Please enter a valid deposit amount!', 'warning');
       return;
     }
 
@@ -339,6 +389,8 @@ function App() {
       }
       return g;
     }));
+
+    showToast(`成功存入 $${numAmt}！`, 'success');
   };
 
   const currentMonthItems = useMemo(() => {
@@ -473,6 +525,7 @@ function App() {
   const handleBatchDelete = (selectedIds) => {
     if (window.confirm(`確定要刪除選取的 ${selectedIds.length} 筆紀錄嗎？`)) {
       setItems(prev => prev.filter(t => !selectedIds.includes(t.id)));
+      showToast(`已成功刪除 ${selectedIds.length} 筆紀錄`, 'info');
     }
   };
 
@@ -480,12 +533,13 @@ function App() {
     if (window.confirm('⚠️ 警告：確定要清空「所有」記帳紀錄嗎？此動作無法復原！')) {
       setItems([]);
       localStorage.removeItem('accounting_items');
+      showToast('所有記帳紀錄已清空', 'error');
     }
   };
 
   const handleExportCSV = () => {
     if (items.length === 0) {
-      alert('目前沒有任何記帳紀錄可供匯出！');
+      showToast(lang === 'zh-TW' ? '目前沒有任何記帳紀錄可供匯出！' : 'No records to export!', 'warning');
       return;
     }
 
@@ -519,6 +573,8 @@ function App() {
 
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+
+    showToast(t.csvExported, 'success');
   };
 
   const starBgLight = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cpath fill='none' stroke='%2393c5fd' stroke-opacity='0.6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M40 10l4.8 10.4 11.2 1.6-8 8 1.9 11.2-10-5.6-10 5.6 1.9-11.2-8-8 11.2-1.6zm80 80l4.8 10.4 11.2 1.6-8 8 1.9 11.2-10-5.6-10 5.6 1.9-11.2-8-8 11.2-1.6zM120 10l3 6.4 7 1-5 5 1.2 7-6.2-3.4-6.2 3.4 1.2-7-5-5 7-1zm-80 80l3 6.4 7 1-5 5 1.2 7-6.2-3.4-6.2 3.4 1.2-7-5-5 7-1z'/%3E%3C/svg%3E")`;
@@ -546,6 +602,24 @@ function App() {
         }
       `}</style>
 
+      {/* 🔔 全域 Toast 提示訊息 */}
+      {toast.show && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={handleCloseToast}
+          isDarkMode={isDarkMode}
+        />
+      )}
+
+      {/* 🌀 全域 Loading 載入遮罩 */}
+      {isRatesLoading && (
+        <LoadingSpinner
+          isDarkMode={isDarkMode}
+          text={lang === 'zh-TW' ? '正在獲取最新即時匯率...' : 'Fetching latest rates...'}
+        />
+      )}
+
       <div style={{ maxWidth: '960px', margin: '0 auto' }}>
         <Header 
           currentMonth={currentMonth} 
@@ -553,9 +627,10 @@ function App() {
           onExportCSV={handleExportCSV}
           isDarkMode={isDarkMode}
           onToggleDarkMode={handleToggleDarkMode}
+          t={t}
         />
 
-        <Navbar isDarkMode={isDarkMode} />
+        <Navbar isDarkMode={isDarkMode} t={t} />
 
         <div className="main-layout" style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <Routes>
@@ -579,6 +654,7 @@ function App() {
                   onOpenAddModal={handleOpenAddModal}
                   isDarkMode={isDarkMode}
                   baseCurrency={baseCurrency}
+                  t={t}
                 />
               } 
             />
@@ -596,6 +672,7 @@ function App() {
                   dailyTrendData={dailyTrendData}
                   isDarkMode={isDarkMode}
                   baseCurrency={baseCurrency}
+                  t={t}
                 />
               } 
             />
@@ -612,6 +689,7 @@ function App() {
                   onEditGoal={handleEditGoal}
                   onDeleteGoal={handleDeleteGoal}
                   onDepositGoal={handleDepositGoal}
+                  t={t}
                 />
               } 
             />
@@ -626,6 +704,7 @@ function App() {
                   rates={rates}
                   currentMonth={currentMonth}
                   onSelectMonth={(m) => setCurrentMonth(m)}
+                  t={t}
                 />
               } 
             />
@@ -644,6 +723,9 @@ function App() {
                   lastUpdated={lastUpdated}
                   isFallback={isFallback}
                   onRefreshRates={() => loadRates(true)}
+                  lang={lang}
+                  onLanguageChange={handleLanguageChange}
+                  t={t}
                 />
               } 
             />
@@ -671,6 +753,7 @@ function App() {
         rates={rates}
         isDarkMode={isDarkMode}
         baseCurrency={baseCurrency}
+        t={t}
       />
     </div>
   );

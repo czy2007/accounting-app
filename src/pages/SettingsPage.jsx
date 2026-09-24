@@ -1,4 +1,5 @@
 import React from 'react';
+import { translations } from '../i18n'; // 請依據你的 i18n.js 實際檔案路徑調整
 
 function SettingsPage({ 
   isDarkMode, 
@@ -7,8 +8,19 @@ function SettingsPage({
   rates = {}, 
   isRatesLoading = false, 
   lastUpdated = '', 
-  onRefreshRates 
+  onRefreshRates,
+  lang = 'zh-TW',
+  onLanguageChange,
+  t = {}
 }) {
+  // 語言代碼對應的顯示名稱
+  const languageNames = {
+    'zh-TW': '繁體中文 (Traditional Chinese)',
+    'en': 'English',
+    'ja': '日本語 (Japanese)',
+    'ko': '한국어 (Korean)'
+  };
+
   const cardStyle = {
     backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
     borderRadius: '16px',
@@ -50,18 +62,45 @@ function SettingsPage({
   return (
     <div style={{ flex: 1, width: '100%' }}>
       <h2 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        ⚙️ 系統設定
+        ⚙️ {t.settingsTitle || '系統設定'}
       </h2>
 
-      {/* 1. 主要幣別設定 */}
+      {/* 1. 🌐 介面語言選擇 */}
       <div style={cardStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <div style={{ fontSize: '17px', fontWeight: '700', marginBottom: '4px' }}>
-              🌐 主要結算幣別
+              🌐 {t.languageSetting || '介面語言'}
             </div>
             <div style={{ fontSize: '13px', color: isDarkMode ? '#94a3b8' : '#64748b' }}>
-              設定您慣用的預設貨幣，所有統計與圖表將以此幣別為主。
+              {t.languageDesc || '切換系統顯示語言'}
+            </div>
+          </div>
+
+          {/* 自動依據 translations 字典檔裡的 key 來產生選項 */}
+          <select 
+            value={lang} 
+            onChange={(e) => onLanguageChange && onLanguageChange(e.target.value)}
+            style={selectStyle}
+          >
+            {Object.keys(translations).map((langKey) => (
+              <option key={langKey} value={langKey}>
+                {languageNames[langKey] || langKey}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* 2. 💰 主要幣別設定 */}
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <div style={{ fontSize: '17px', fontWeight: '700', marginBottom: '4px' }}>
+              💰 {t.baseCurrencySetting || '主要結算貨幣'}
+            </div>
+            <div style={{ fontSize: '13px', color: isDarkMode ? '#94a3b8' : '#64748b' }}>
+              {t.baseCurrencyDesc || '變更全站紀錄顯示之基準貨幣'}
             </div>
           </div>
 
@@ -79,12 +118,12 @@ function SettingsPage({
         </div>
       </div>
 
-      {/* 2. 實時匯率狀態與手動刷新 */}
+      {/* 3. 💱 實時匯率狀態與手動刷新 */}
       <div style={cardStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
           <div>
             <div style={{ fontSize: '17px', fontWeight: '700', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              💱 即時匯率資料
+              💱 {t.refreshRates || '強制更新即時匯率'}
             </div>
             <div style={{ fontSize: '13px', color: isDarkMode ? '#94a3b8' : '#64748b' }}>
               {lastUpdated ? `最後同步時間：${lastUpdated}` : '系統每 1 小時自動快取並更新最新國際匯率。'}
@@ -103,7 +142,7 @@ function SettingsPage({
               }}>
                 🔄
               </span>
-              {isRatesLoading ? '刷新中...' : '手動更新匯率'}
+              {isRatesLoading ? (lang === 'zh-TW' ? '刷新中...' : 'Updating...') : (lang === 'zh-TW' ? '手動更新匯率' : 'Refresh Rates')}
             </button>
           )}
         </div>
@@ -140,7 +179,7 @@ function SettingsPage({
         </div>
       </div>
 
-      {/* 簡單加入旋轉 Keyframes CSS */}
+      {/* 旋轉 Keyframes CSS */}
       <style>{`
         @keyframes spin {
           from { transform: rotate(0deg); }
