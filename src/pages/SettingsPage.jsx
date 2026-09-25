@@ -1,18 +1,23 @@
+// src/pages/SettingsPage.jsx
 import React from 'react';
-import { translations } from '../i18n'; // 請依據你的 i18n.js 實際檔案路徑調整
+import { translations } from '../i18n';
+import { useAppContext } from '../context/AppContext'; // 引入自訂 Context Hook
 
-function SettingsPage({ 
-  isDarkMode, 
-  baseCurrency, 
-  onBaseCurrencyChange, 
-  rates = {}, 
-  isRatesLoading = false, 
-  lastUpdated = '', 
-  onRefreshRates,
-  lang = 'zh-TW',
-  onLanguageChange,
-  t = {}
-}) {
+function SettingsPage() {
+  // 🌟 從全域 Context 中直接解構出需要的狀態與處理函式
+  const {
+    isDarkMode,
+    baseCurrency,
+    setBaseCurrency,
+    rates,
+    isRatesLoading,
+    lastUpdated,
+    loadRates,
+    lang,
+    handleLanguageChange,
+    t
+  } = useAppContext();
+
   // 語言代碼對應的顯示名稱
   const languageNames = {
     'zh-TW': '繁體中文 (Traditional Chinese)',
@@ -80,7 +85,7 @@ function SettingsPage({
           {/* 自動依據 translations 字典檔裡的 key 來產生選項 */}
           <select 
             value={lang} 
-            onChange={(e) => onLanguageChange && onLanguageChange(e.target.value)}
+            onChange={(e) => handleLanguageChange(e.target.value)}
             style={selectStyle}
           >
             {Object.keys(translations).map((langKey) => (
@@ -106,7 +111,7 @@ function SettingsPage({
 
           <select 
             value={baseCurrency} 
-            onChange={(e) => onBaseCurrencyChange(e.target.value)}
+            onChange={(e) => setBaseCurrency(e.target.value)}
             style={selectStyle}
           >
             {Object.entries(rates).map(([code, info]) => (
@@ -130,21 +135,19 @@ function SettingsPage({
             </div>
           </div>
 
-          {onRefreshRates && (
-            <button 
-              onClick={onRefreshRates} 
-              disabled={isRatesLoading}
-              style={buttonStyle}
-            >
-              <span style={{ 
-                display: 'inline-block', 
-                animation: isRatesLoading ? 'spin 1s linear infinite' : 'none' 
-              }}>
-                🔄
-              </span>
-              {isRatesLoading ? (lang === 'zh-TW' ? '刷新中...' : 'Updating...') : (lang === 'zh-TW' ? '手動更新匯率' : 'Refresh Rates')}
-            </button>
-          )}
+          <button 
+            onClick={() => loadRates(true)} 
+            disabled={isRatesLoading}
+            style={buttonStyle}
+          >
+            <span style={{ 
+              display: 'inline-block', 
+              animation: isRatesLoading ? 'spin 1s linear infinite' : 'none' 
+            }}>
+              🔄
+            </span>
+            {isRatesLoading ? (lang === 'zh-TW' ? '刷新中...' : 'Updating...') : (lang === 'zh-TW' ? '手動更新匯率' : 'Refresh Rates')}
+          </button>
         </div>
 
         {/* 幣別對照參考表 */}

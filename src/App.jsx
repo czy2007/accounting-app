@@ -5,8 +5,7 @@ import Navbar from './components/Navbar';
 import ExpenseForm from './components/ExpenseForm';
 import Toast from './components/Toast';
 import LoadingSpinner from './components/LoadingSpinner';
-import { fetchExchangeRates, DEFAULT_RATES } from './components/currencyUtils';
-import { translations } from './i18n';
+import { useAppContext } from './context/AppContext'; // 🌟 引入全域 Context
 import './App.css';
 
 // 引入頁面組件
@@ -17,6 +16,21 @@ import HistoryPage from './pages/HistoryPage';
 import WalletsPage from './pages/WalletsPage';
 
 function App() {
+  // 🌟 從 AppContext 取得已託管的全域狀態與操作函式
+  const {
+    lang,
+    t,
+    toast,
+    showToast,
+    handleCloseToast,
+    isDarkMode,
+    handleToggleDarkMode,
+    baseCurrency,
+    setBaseCurrency,
+    rates,
+    isRatesLoading
+  } = useAppContext();
+
   const getTodayDate = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -32,107 +46,16 @@ function App() {
     return `${year}-${month}`;
   };
 
-  // 🌐 語言設定狀態 (預設 繁體中文 zh-TW)
-  const [lang, setLang] = useState(() => {
-    try {
-      return localStorage.getItem('accounting_lang') || 'zh-TW';
-    } catch (e) {
-      return 'zh-TW';
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem('accounting_lang', lang);
-  }, [lang]);
-
-  // 取得當前語言的字典包
-  const t = translations[lang] || translations['zh-TW'];
-
-  const handleLanguageChange = (newLang) => {
-    setLang(newLang);
-    const msg = newLang === 'zh-TW' ? translations['zh-TW'].langChanged : translations['en'].langChanged;
-    showToast(msg, 'success');
-  };
-
-  // Toast 提示通知狀態
-  const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
-
-  // 顯示 Toast 提示視窗 (預設 3 秒後自動隱藏)
-  const showToast = (message, type = 'info', duration = 3000) => {
-    setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast({ show: false, message: '', type: 'info' });
-    }, duration);
-  };
-
-  const handleCloseToast = () => {
-    setToast({ show: false, message: '', type: 'info' });
-  };
-
-  // 暗黑模式狀態
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    try {
-      const savedTheme = localStorage.getItem('accounting_theme');
-      return savedTheme ? JSON.parse(savedTheme) : false;
-    } catch (e) {
-      return false;
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem('accounting_theme', JSON.stringify(isDarkMode));
-  }, [isDarkMode]);
-
-  const handleToggleDarkMode = () => {
-    setIsDarkMode(prev => !prev);
-  };
-
-  // 主要基準貨幣（預設 TWD）
-  const [baseCurrency, setBaseCurrency] = useState(() => {
-    try {
-      return localStorage.getItem('accounting_base_currency') || 'TWD';
-    } catch (e) {
-      return 'TWD';
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem('accounting_base_currency', baseCurrency);
-  }, [baseCurrency]);
-
-  // 幣別與匯率狀態管理
-  const [currency, setCurrency] = useState(baseCurrency);
-  const [rates, setRates] = useState(DEFAULT_RATES);
-  const [isRatesLoading, setIsRatesLoading] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState('');
-  const [isFallback, setIsFallback] = useState(false);
-
-  // 載入與更新匯率函式
-  const loadRates = async (force = false) => {
-    setIsRatesLoading(true);
-    const result = await fetchExchangeRates(baseCurrency, force);
-    setRates(result.rates);
-    setLastUpdated(result.lastUpdated || '');
-    setIsFallback(result.isFallback || false);
-    setIsRatesLoading(false);
-
-    if (force) {
-      showToast(t.ratesUpdated, 'success');
-    }
-  };
-
-  useEffect(() => {
-    loadRates();
-  }, [baseCurrency]);
-
+  // 🌟 切換主要貨幣時，同步換算記帳紀錄 (items) 與 存錢目標 (goals)
   const handleBaseCurrencyChange = (newBaseCurrency) => {
     if (newBaseCurrency === baseCurrency) return;
 
-    if (window.confirm(`確定要將系統主要貨幣變更為 ${newBaseCurrency} 嗎？所有過往紀錄金額將會自動依當前匯率重新計算。`)) {
+    if (window.confirm(`確定要將系統主要貨幣變更為 ${newBaseCurrency} 嗎？所有過往紀錄與存錢目標金額將會自動依當前匯率重新計算。`)) {
       setBaseCurrency(newBaseCurrency);
       
+      // 1. 換算記帳紀錄金額
       setItems(prevItems => prevItems.map(item => {
-        const origCurrency = item.originalCurrency || 'TWD';
+        const origCurrency = item.originalCurrency || baseCurrency;
         const origAmount = item.originalAmount || item.amount;
 
         if (origCurrency === newBaseCurrency) {
@@ -148,6 +71,36 @@ function App() {
         return {
           ...item,
           amount: amountInNewBase
+        };
+      }));
+
+      // 2. 換算存錢目標金額（targetAmount 與 currentAmount）
+      setGoals(prevGoals => prevGoals.map(goal => {
+        const origCurrency = goal.currency || baseCurrency;
+        const origTarget = goal.originalTargetAmount || goal.targetAmount;
+        const origCurrent = goal.originalCurrentAmount || goal.currentAmount || 0;
+
+        if (origCurrency === newBaseCurrency) {
+          return {
+            ...goal,
+            targetAmount: origTarget,
+            currentAmount: origCurrent
+          };
+        }
+
+        const origRate = rates[origCurrency]?.rate || 1;
+        const newBaseRate = rates[newBaseCurrency]?.rate || 1;
+
+        const targetInTWD = origCurrency === 'TWD' ? origTarget : origTarget / origRate;
+        const newTarget = newBaseCurrency === 'TWD' ? targetInTWD : Math.round(targetInTWD * newBaseRate);
+
+        const currentInTWD = origCurrency === 'TWD' ? origCurrent : origCurrent / origRate;
+        const newCurrent = newBaseCurrency === 'TWD' ? currentInTWD : Math.round(currentInTWD * newBaseRate);
+
+        return {
+          ...goal,
+          targetAmount: newTarget,
+          currentAmount: newCurrent
         };
       }));
 
@@ -207,6 +160,7 @@ function App() {
   // 表單狀態
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState(baseCurrency);
   const [category, setCategory] = useState('🍔 餐飲');
   const [type, setType] = useState('expense');
   const [date, setDate] = useState(getTodayDate());
@@ -323,14 +277,97 @@ function App() {
     handleCloseModal();
   };
 
+  // 🌟 刪除單筆明細：同步扣除存錢目標金額並跳出 Toast 提醒
   const handleDelete = (id) => {
-    setItems(items.filter(item => item.id !== id));
-    showToast(t.itemDeleted, 'info');
+    const itemToDelete = items.find(item => item.id === id);
+    if (!itemToDelete) return;
+
+    let isGoalExpense = false;
+    let targetGoalName = '';
+
+    if (itemToDelete.goalId) {
+      isGoalExpense = true;
+      setGoals(prevGoals => prevGoals.map(g => {
+        if (g.id === itemToDelete.goalId) {
+          targetGoalName = g.name;
+          const deductAmount = itemToDelete.goalAddAmount || itemToDelete.amount || 0;
+          const newCurrent = Math.max(0, Number(g.currentAmount || 0) - deductAmount);
+          return {
+            ...g,
+            currentAmount: newCurrent,
+            originalCurrentAmount: newCurrent
+          };
+        }
+        return g;
+      }));
+    }
+
+    setItems(prev => prev.filter(item => item.id !== id));
+
+    // 🔔 根據是否為目標存入明細顯示警示通知
+    if (isGoalExpense) {
+      showToast(
+        lang === 'zh-TW' 
+          ? `已刪除此筆紀錄，目標「${targetGoalName || '存錢目標'}」已同步扣除對應金額！` 
+          : 'Record deleted. Savings goal balance updated!', 
+        'warning'
+      );
+    } else {
+      showToast(t.itemDeleted, 'info');
+    }
   };
 
-  // 🎯 存錢目標控制
+  // 🌟 批量刪除：若包含目標存入明細，同樣給予提示與同步扣除
+  const handleBatchDelete = (selectedIds) => {
+    if (window.confirm(`確定要刪除選取的 ${selectedIds.length} 筆紀錄嗎？`)) {
+      const itemsToDelete = items.filter(item => selectedIds.includes(item.id));
+      let affectedGoalsCount = 0;
+
+      itemsToDelete.forEach(item => {
+        if (item.goalId) {
+          affectedGoalsCount++;
+          setGoals(prevGoals => prevGoals.map(g => {
+            if (g.id === item.goalId) {
+              const deductAmount = item.goalAddAmount || item.amount || 0;
+              const newCurrent = Math.max(0, Number(g.currentAmount || 0) - deductAmount);
+              return {
+                ...g,
+                currentAmount: newCurrent,
+                originalCurrentAmount: newCurrent
+              };
+            }
+            return g;
+          }));
+        }
+      });
+
+      setItems(prev => prev.filter(t => !selectedIds.includes(t.id)));
+
+      if (affectedGoalsCount > 0) {
+        showToast(
+          lang === 'zh-TW' 
+            ? `已刪除 ${selectedIds.length} 筆紀錄（含 ${affectedGoalsCount} 筆存錢紀錄，目標進度已同步更新）` 
+            : `Deleted ${selectedIds.length} items and updated savings goals!`, 
+          'warning'
+        );
+      } else {
+        showToast(`已成功刪除 ${selectedIds.length} 筆紀錄`, 'info');
+      }
+    }
+  };
+
+  // 🎯 存錢目標控制：新增目標
   const handleAddGoal = (newGoal) => {
-    setGoals(prev => [...prev, { ...newGoal, id: `g_${Date.now()}` }]);
+    const goalId = `g_${Date.now()}`;
+    const goalData = {
+      ...newGoal,
+      id: goalId,
+      currency: newGoal.currency || baseCurrency,
+      originalTargetAmount: Number(newGoal.targetAmount),
+      originalCurrentAmount: Number(newGoal.currentAmount || 0)
+    };
+
+    setGoals(prev => [...prev, goalData]);
 
     const initAmt = Number(newGoal.currentAmount || 0);
     if (initAmt > 0) {
@@ -338,8 +375,10 @@ function App() {
         id: Date.now(),
         name: `存入目標：${newGoal.name}`,
         originalAmount: initAmt,
-        originalCurrency: baseCurrency,
+        originalCurrency: goalData.currency,
         amount: initAmt,
+        goalId: goalId,
+        goalAddAmount: initAmt,
         category: '💡 雜項',
         type: 'expense',
         date: getTodayDate()
@@ -351,18 +390,46 @@ function App() {
   };
 
   const handleEditGoal = (updatedGoal) => {
-    setGoals(prev => prev.map(g => g.id === updatedGoal.id ? updatedGoal : g));
+    setGoals(prev => prev.map(g => g.id === updatedGoal.id ? {
+      ...updatedGoal,
+      currency: updatedGoal.currency || baseCurrency,
+      originalTargetAmount: Number(updatedGoal.targetAmount),
+      originalCurrentAmount: Number(updatedGoal.currentAmount || 0)
+    } : g));
     showToast(lang === 'zh-TW' ? '目標變更已儲存' : 'Goal updated', 'success');
   };
 
+  // 🌟 刪除目標：雙重比對 goalId 與 名稱，確保新舊明細均自動清理並歸還資金
   const handleDeleteGoal = (id) => {
-    if (window.confirm(lang === 'zh-TW' ? '確定要刪除這個存錢目標嗎？' : 'Are you sure you want to delete this goal?')) {
+    const targetGoal = goals.find(g => g.id === id);
+    if (!targetGoal) return;
+
+    const confirmMsg = lang === 'zh-TW'
+      ? `確定要刪除存錢目標「${targetGoal.name}」嗎？\n\n⚠️ 注意：當初存入此目標的所有支出紀錄將會自動刪除，並將資金歸還（加回）至你的結餘中！`
+      : `Are you sure you want to delete "${targetGoal.name}"?\n\nAll deposit records for this goal will be removed and returned to your balance!`;
+
+    if (window.confirm(confirmMsg)) {
+      // 1. 刪除目標
       setGoals(prev => prev.filter(g => g.id !== id));
-      showToast(lang === 'zh-TW' ? '已刪除存錢目標' : 'Goal deleted', 'info');
+
+      // 2. 雙重過濾：比對 goalId 或明細名稱「存入目標：目標名稱」
+      const targetName = targetGoal.name;
+      setItems(prevItems => prevItems.filter(item => {
+        const isMatchById = item.goalId && item.goalId === id;
+        const isMatchByName = item.name && (
+          item.name === `存入目標：${targetName}` || 
+          item.name === `存入目標: ${targetName}`
+        );
+        
+        return !(isMatchById || isMatchByName);
+      }));
+
+      showToast(lang === 'zh-TW' ? '已刪除存錢目標，對應資金已自動歸還！' : 'Goal deleted and funds restored!', 'info');
     }
   };
 
-  const handleDepositGoal = (goalId, depositAmount) => {
+  // 🌟 存入資金（綁定 goalId 與精準匯率金額）
+  const handleDepositGoal = (goalId, depositAmount, depositCurrency = baseCurrency) => {
     const numAmt = Number(depositAmount);
     if (!numAmt || numAmt <= 0) {
       showToast(lang === 'zh-TW' ? '請輸入正確的存入金額！' : 'Please enter a valid deposit amount!', 'warning');
@@ -370,27 +437,86 @@ function App() {
     }
 
     const targetGoal = goals.find(g => g.id === goalId);
-    
+    if (!targetGoal) return;
+
+    const goalCurrency = targetGoal.currency || 'TWD';
+
+    const convertToTWD = (amount, curr) => {
+      if (curr === 'TWD') return amount;
+      const rateOfCurr = rates[curr]?.rate || 1;
+      const rateOfTWD = rates['TWD']?.rate || 1;
+
+      if (baseCurrency === 'TWD') {
+        return amount / rateOfCurr;
+      } else if (baseCurrency === curr) {
+        return amount * rateOfTWD;
+      } else {
+        const amountInBase = amount / rateOfCurr;
+        return amountInBase * rateOfTWD;
+      }
+    };
+
+    const convertFromTWD = (amountInTWD, targetCurr) => {
+      if (targetCurr === 'TWD') return amountInTWD;
+      const rateOfTarget = rates[targetCurr]?.rate || 1;
+      const rateOfTWD = rates['TWD']?.rate || 1;
+
+      if (baseCurrency === 'TWD') {
+        return amountInTWD * rateOfTarget;
+      } else if (baseCurrency === targetCurr) {
+        return amountInTWD / rateOfTWD;
+      } else {
+        const amountInBase = amountInTWD / rateOfTWD;
+        return amountInBase * rateOfTarget;
+      }
+    };
+
+    // 1. 計算折算至目標幣別的金額
+    let goalAddAmount = numAmt;
+    if (depositCurrency !== goalCurrency) {
+      const amountInTWD = convertToTWD(numAmt, depositCurrency);
+      goalAddAmount = Math.round(convertFromTWD(amountInTWD, goalCurrency));
+    }
+
+    // 2. 計算折算至全站主要幣別的金額
+    let expenseBaseAmount = numAmt;
+    if (depositCurrency !== baseCurrency) {
+      const amountInTWD = convertToTWD(numAmt, depositCurrency);
+      expenseBaseAmount = convertFromTWD(amountInTWD, baseCurrency);
+      expenseBaseAmount = (baseCurrency === 'JPY' || baseCurrency === 'KRW' || baseCurrency === 'TWD')
+        ? Math.round(expenseBaseAmount)
+        : Number(expenseBaseAmount.toFixed(2));
+    }
+
+    // 3. 新增明細紀錄（包含 goalId 與 goalAddAmount 以便雙向聯動）
     const newExpense = {
       id: Date.now(),
-      name: `存入目標：${targetGoal?.name || '存錢目標'}`,
+      name: `存入目標：${targetGoal.name}`,
       originalAmount: numAmt,
-      originalCurrency: baseCurrency,
-      amount: numAmt,
+      originalCurrency: depositCurrency,
+      amount: expenseBaseAmount,
+      goalId: goalId,
+      goalAddAmount: goalAddAmount,
       category: '💡 雜項',
       type: 'expense',
       date: getTodayDate()
     };
     setItems(prev => [newExpense, ...prev]);
 
+    // 4. 更新存錢目標進度
     setGoals(prev => prev.map(g => {
       if (g.id === goalId) {
-        return { ...g, currentAmount: Number(g.currentAmount || 0) + numAmt };
+        const updatedCurrent = Number(g.currentAmount || 0) + goalAddAmount;
+        return { 
+          ...g, 
+          currentAmount: updatedCurrent,
+          originalCurrentAmount: updatedCurrent
+        };
       }
       return g;
     }));
 
-    showToast(`成功存入 $${numAmt}！`, 'success');
+    showToast(`成功存入 ${depositCurrency} $${numAmt.toLocaleString()}（折合約 ${goalCurrency} $${goalAddAmount.toLocaleString()}）！`, 'success');
   };
 
   const currentMonthItems = useMemo(() => {
@@ -521,13 +647,6 @@ function App() {
   const sortedDates = useMemo(() => {
     return Object.keys(groupedDataByDate).sort((a, b) => b.localeCompare(a));
   }, [groupedDataByDate]);
-
-  const handleBatchDelete = (selectedIds) => {
-    if (window.confirm(`確定要刪除選取的 ${selectedIds.length} 筆紀錄嗎？`)) {
-      setItems(prev => prev.filter(t => !selectedIds.includes(t.id)));
-      showToast(`已成功刪除 ${selectedIds.length} 筆紀錄`, 'info');
-    }
-  };
 
   const handleClearAll = () => {
     if (window.confirm('⚠️ 警告：確定要清空「所有」記帳紀錄嗎？此動作無法復原！')) {
@@ -711,23 +830,7 @@ function App() {
 
             <Route 
               path="/settings" 
-              element={
-                <SettingsPage 
-                  isDarkMode={isDarkMode}
-                  onToggleDarkMode={handleToggleDarkMode}
-                  onExportCSV={handleExportCSV}
-                  baseCurrency={baseCurrency}
-                  onBaseCurrencyChange={handleBaseCurrencyChange}
-                  rates={rates}
-                  isRatesLoading={isRatesLoading}
-                  lastUpdated={lastUpdated}
-                  isFallback={isFallback}
-                  onRefreshRates={() => loadRates(true)}
-                  lang={lang}
-                  onLanguageChange={handleLanguageChange}
-                  t={t}
-                />
-              } 
+              element={<SettingsPage />} 
             />
           </Routes>
         </div>

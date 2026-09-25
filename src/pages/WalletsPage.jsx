@@ -12,16 +12,18 @@ function WalletsPage({
 }) {
   // Modal 狀態：新增與編輯目標
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
-  const [editingGoalId, setEditingGoalId] = useState(null); // 當前正在編輯的目標 ID
+  const [editingGoalId, setEditingGoalId] = useState(null);
   const [goalName, setGoalName] = useState('');
   const [goalTarget, setGoalTarget] = useState('');
   const [goalCurrent, setGoalCurrent] = useState('0');
+  const [goalCurrency, setGoalCurrency] = useState(baseCurrency);
   const [goalDate, setGoalDate] = useState('');
   const [goalIcon, setGoalIcon] = useState('🎯');
 
   // Modal 狀態：存入資金
   const [depositGoalId, setDepositGoalId] = useState(null);
   const [depositAmount, setDepositAmount] = useState('');
+  const [depositCurrency, setDepositCurrency] = useState(baseCurrency);
 
   // 計算全站總統計：總收入、總支出、結餘 (收入 - 支出)
   const totalStats = useMemo(() => {
@@ -48,6 +50,7 @@ function WalletsPage({
     setGoalName('');
     setGoalTarget('');
     setGoalCurrent('0');
+    setGoalCurrency(baseCurrency);
     setGoalDate('');
     setGoalIcon('🎯');
     setIsGoalModalOpen(true);
@@ -57,11 +60,19 @@ function WalletsPage({
   const handleOpenEditModal = (goal) => {
     setEditingGoalId(goal.id);
     setGoalName(goal.name || '');
-    setGoalTarget(goal.targetAmount || '');
-    setGoalCurrent(goal.currentAmount || '0');
+    setGoalTarget(goal.originalTargetAmount || goal.targetAmount || '');
+    setGoalCurrent(goal.originalCurrentAmount || goal.currentAmount || '0');
+    setGoalCurrency(goal.currency || baseCurrency);
     setGoalDate(goal.targetDate === '無期限' ? '' : (goal.targetDate || ''));
     setGoalIcon(goal.icon || '');
     setIsGoalModalOpen(true);
+  };
+
+  // 開啟「存入資金」Modal
+  const handleOpenDepositModal = (goal) => {
+    setDepositGoalId(goal.id);
+    setDepositAmount('');
+    setDepositCurrency(goal.currency || baseCurrency);
   };
 
   const handleGoalSubmit = (e) => {
@@ -71,28 +82,30 @@ function WalletsPage({
       return;
     }
 
+    const numTarget = Number(goalTarget);
+    const numCurrent = Number(goalCurrent) || 0;
+
+    const goalPayload = {
+      name: goalName.trim(),
+      targetAmount: numTarget,
+      originalTargetAmount: numTarget,
+      currentAmount: numCurrent,
+      originalCurrentAmount: numCurrent,
+      currency: goalCurrency,
+      targetDate: goalDate || '無期限',
+      icon: goalIcon
+    };
+
     if (editingGoalId) {
-      // 編輯模式
       if (onEditGoal) {
         onEditGoal({
+          ...goalPayload,
           id: editingGoalId,
-          name: goalName.trim(),
-          targetAmount: Number(goalTarget),
-          currentAmount: Number(goalCurrent) || 0,
-          targetDate: goalDate || '無期限',
-          icon: goalIcon
         });
       }
     } else {
-      // 新增模式
       if (onAddGoal) {
-        onAddGoal({
-          name: goalName.trim(),
-          targetAmount: Number(goalTarget),
-          currentAmount: Number(goalCurrent) || 0,
-          targetDate: goalDate || '無期限',
-          icon: goalIcon
-        });
+        onAddGoal(goalPayload);
       }
     }
 
@@ -101,8 +114,12 @@ function WalletsPage({
 
   const handleDepositSubmit = (e) => {
     e.preventDefault();
+    if (!depositCurrency) {
+      alert('請選擇存入資金的幣別！');
+      return;
+    }
     if (onDepositGoal) {
-      onDepositGoal(depositGoalId, depositAmount);
+      onDepositGoal(depositGoalId, depositAmount, depositCurrency);
     }
     setDepositGoalId(null);
     setDepositAmount('');
@@ -129,7 +146,7 @@ function WalletsPage({
            錢包
         </div>
         
-        {/* 淨結餘 (收入 - 支出) */}
+        {/* 淨結餘 */}
         <div style={{ marginBottom: '20px' }}>
           <div style={{ fontSize: '13px', color: subTextColor }}>目前淨結餘 (總收入 - 總支出)</div>
           <div style={{ 
@@ -200,6 +217,8 @@ function WalletsPage({
               const currentAmt = Number(goal.currentAmount || 0);
               const targetAmt = Number(goal.targetAmount || 1);
               const percent = Math.min(Math.round((currentAmt / targetAmt) * 100), 100);
+              const displayCurrency = goal.currency || baseCurrency;
+
               return (
                 <div 
                   key={goal.id}
@@ -218,7 +237,6 @@ function WalletsPage({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#3b82f6' }}>{percent}%</span>
                       
-                      {/* ✏️ 編輯按鈕 */}
                       <button
                         onClick={() => handleOpenEditModal(goal)}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px' }}
@@ -227,7 +245,6 @@ function WalletsPage({
                         ✏️
                       </button>
 
-                      {/* 🗑️ 刪除按鈕 */}
                       {onDeleteGoal && (
                         <button
                           onClick={() => onDeleteGoal(goal.id)}
@@ -247,10 +264,10 @@ function WalletsPage({
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ fontSize: '14px', color: subTextColor }}>
-                      已存：<strong style={{ color: textColor }}>${currentAmt.toLocaleString()}</strong> / 目標：${targetAmt.toLocaleString()}
+                      已存：<strong style={{ color: textColor }}>${currentAmt.toLocaleString()} {displayCurrency}</strong> / 目標：${targetAmt.toLocaleString()} {displayCurrency}
                     </div>
                     <button
-                      onClick={() => setDepositGoalId(goal.id)}
+                      onClick={() => handleOpenDepositModal(goal)}
                       style={{
                         padding: '6px 14px',
                         borderRadius: '8px',
@@ -296,18 +313,36 @@ function WalletsPage({
               <label style={{ display: 'block', fontSize: '13px', color: subTextColor, marginBottom: '4px' }}>目標名稱</label>
               <input type="text" value={goalName} onChange={e => setGoalName(e.target.value)} placeholder="例：買筆電" style={{ width: '100%', padding: '8px', borderRadius: '8px', boxSizing: 'border-box' }} required />
             </div>
+
+            {/* 🌟 目標幣別（必填 required） */}
             <div style={{ marginBottom: '12px' }}>
-              <label style={{ display: 'block', fontSize: '13px', color: subTextColor, marginBottom: '4px' }}>目標金額</label>
+              <label style={{ display: 'block', fontSize: '13px', color: subTextColor, marginBottom: '4px' }}>目標幣別 <span style={{ color: '#ef4444' }}>*</span></label>
+              <select value={goalCurrency} onChange={e => setGoalCurrency(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '8px' }} required>
+                <option value="TWD">🇹🇼 TWD (新台幣)</option>
+                <option value="USD">🇺🇸 USD (美元)</option>
+                <option value="JPY">🇯🇵 JPY (日圓)</option>
+                <option value="EUR">🇪🇺 EUR (歐元)</option>
+                <option value="GBP">🇬🇧 GBP (英鎊)</option>
+                <option value="HKD">🇭🇰 HKD (港幣)</option>
+                <option value="KRW">🇰🇷 KRW (韓元)</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '13px', color: subTextColor, marginBottom: '4px' }}>目標金額 ({goalCurrency})</label>
               <input type="number" value={goalTarget} onChange={e => setGoalTarget(e.target.value)} placeholder="50000" style={{ width: '100%', padding: '8px', borderRadius: '8px', boxSizing: 'border-box' }} required />
             </div>
+
             <div style={{ marginBottom: '12px' }}>
-              <label style={{ display: 'block', fontSize: '13px', color: subTextColor, marginBottom: '4px' }}>已存金額</label>
+              <label style={{ display: 'block', fontSize: '13px', color: subTextColor, marginBottom: '4px' }}>已存金額 ({goalCurrency})</label>
               <input type="number" value={goalCurrent} onChange={e => setGoalCurrent(e.target.value)} placeholder="0" style={{ width: '100%', padding: '8px', borderRadius: '8px', boxSizing: 'border-box' }} />
             </div>
+
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '13px', color: subTextColor, marginBottom: '4px' }}>預計完成日期</label>
               <input type="date" value={goalDate} onChange={e => setGoalDate(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '8px', boxSizing: 'border-box' }} />
             </div>
+
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button type="button" onClick={() => setIsGoalModalOpen(false)} style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>取消</button>
               <button type="submit" style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', backgroundColor: '#10b981', color: '#fff', cursor: 'pointer' }}>
@@ -318,15 +353,31 @@ function WalletsPage({
         </div>
       )}
 
-      {/* Modal: 存入資金 */}
+      {/* Modal: 存入資金 (支援動態選擇存入幣別) */}
       {depositGoalId && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <form onSubmit={handleDepositSubmit} style={{ backgroundColor: cardBg, padding: '24px', borderRadius: '16px', width: '320px', border: borderStyle }}>
             <h3 style={{ marginTop: 0, color: textColor }}>💰 存入資金至目標</h3>
+            
+            {/* 🌟 存入資金幣別（必填 required） */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '13px', color: subTextColor, marginBottom: '4px' }}>存入資金幣別 <span style={{ color: '#ef4444' }}>*</span></label>
+              <select value={depositCurrency} onChange={e => setDepositCurrency(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '8px' }} required>
+                <option value="TWD">🇹🇼 TWD (新台幣)</option>
+                <option value="USD">🇺🇸 USD (美元)</option>
+                <option value="JPY">🇯🇵 JPY (日圓)</option>
+                <option value="EUR">🇪🇺 EUR (歐元)</option>
+                <option value="GBP">🇬🇧 GBP (英鎊)</option>
+                <option value="HKD">🇭🇰 HKD (港幣)</option>
+                <option value="KRW">🇰🇷 KRW (韓元)</option>
+              </select>
+            </div>
+
             <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '13px', color: subTextColor, marginBottom: '4px' }}>存入金額 ({baseCurrency})</label>
+              <label style={{ display: 'block', fontSize: '13px', color: subTextColor, marginBottom: '4px' }}>存入金額 ({depositCurrency})</label>
               <input type="number" value={depositAmount} onChange={e => setDepositAmount(e.target.value)} placeholder="例：3000" style={{ width: '100%', padding: '8px', borderRadius: '8px', boxSizing: 'border-box' }} required />
             </div>
+
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button type="button" onClick={() => setDepositGoalId(null)} style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>取消</button>
               <button type="submit" style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', backgroundColor: '#3b82f6', color: '#fff', cursor: 'pointer' }}>存入</button>
