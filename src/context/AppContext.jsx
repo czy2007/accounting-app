@@ -2,21 +2,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { translations } from '../i18n';
 import { fetchExchangeRates, DEFAULT_RATES } from '../components/currencyUtils';
+import { getStorageItem, setStorageItem } from '../components/storage';
 
 const AppContext = createContext();
 
 export function AppProvider({ children }) {
-  // 🌐 1. 多國語言 (i18n) 狀態
-  const [lang, setLang] = useState(() => {
-    try {
-      return localStorage.getItem('accounting_lang') || 'zh-TW';
-    } catch (e) {
-      return 'zh-TW';
-    }
-  });
+  // 🌐 1. 多國語言 (i18n) 狀態 (安全載入)
+  const [lang, setLang] = useState(() => getStorageItem('accounting_lang', 'zh-TW'));
 
   useEffect(() => {
-    localStorage.setItem('accounting_lang', lang);
+    setStorageItem('accounting_lang', lang);
   }, [lang]);
 
   const t = translations[lang] || translations['zh-TW'];
@@ -43,35 +38,22 @@ export function AppProvider({ children }) {
     showToast(msg, 'success');
   };
 
-  // 🌙 3. 暗黑模式狀態
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    try {
-      const savedTheme = localStorage.getItem('accounting_theme');
-      return savedTheme ? JSON.parse(savedTheme) : false;
-    } catch (e) {
-      return false;
-    }
-  });
+  // 🌙 3. 暗黑模式狀態 (安全載入)
+  const [isDarkMode, setIsDarkMode] = useState(() => getStorageItem('accounting_theme', false));
 
   useEffect(() => {
-    localStorage.setItem('accounting_theme', JSON.stringify(isDarkMode));
+    setStorageItem('accounting_theme', isDarkMode);
   }, [isDarkMode]);
 
   const handleToggleDarkMode = () => {
     setIsDarkMode(prev => !prev);
   };
 
-  // 💰 4. 主要結算幣別與匯率狀態
-  const [baseCurrency, setBaseCurrency] = useState(() => {
-    try {
-      return localStorage.getItem('accounting_base_currency') || 'TWD';
-    } catch (e) {
-      return 'TWD';
-    }
-  });
+  // 💰 4. 主要結算幣別與匯率狀態 (安全載入)
+  const [baseCurrency, setBaseCurrency] = useState(() => getStorageItem('accounting_base_currency', 'TWD'));
 
   useEffect(() => {
-    localStorage.setItem('accounting_base_currency', baseCurrency);
+    setStorageItem('accounting_base_currency', baseCurrency);
   }, [baseCurrency]);
 
   const [rates, setRates] = useState(DEFAULT_RATES);

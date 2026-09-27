@@ -6,6 +6,7 @@ import ExpenseForm from './components/ExpenseForm';
 import Toast from './components/Toast';
 import LoadingSpinner from './components/LoadingSpinner';
 import { useAppContext } from './context/AppContext'; // 🌟 引入全域 Context
+import { getStorageItem, setStorageItem } from './components/storage'; // 🛡️ 引入安全 Storage 工具
 import './App.css';
 
 // 引入頁面組件
@@ -108,53 +109,31 @@ function App() {
     }
   };
 
-  // 🎯 存錢目標狀態管理
-  const [goals, setGoals] = useState(() => {
-    try {
-      const saved = localStorage.getItem('accounting_goals');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
-  });
+  // 🎯 1. 存錢目標狀態管理 (安全載入)
+  const [goals, setGoals] = useState(() => getStorageItem('accounting_goals', []));
 
   useEffect(() => {
-    localStorage.setItem('accounting_goals', JSON.stringify(goals));
+    setStorageItem('accounting_goals', goals);
   }, [goals]);
 
-  // 記帳資料狀態
+  // 🎯 2. 記帳資料狀態 (安全載入與補全日期)
   const [items, setItems] = useState(() => {
-    try {
-      const savedItems = localStorage.getItem('accounting_items');
-      if (!savedItems) return [];
-      const parsedItems = JSON.parse(savedItems);
-      if (!Array.isArray(parsedItems)) return [];
-      return parsedItems.map(item => ({
-        ...item,
-        date: item.date || getTodayDate()
-      }));
-    } catch (e) {
-      console.error("Failed to parse localStorage accounting_items:", e);
-      return [];
-    }
+    const rawItems = getStorageItem('accounting_items', []);
+    return rawItems.map(item => ({
+      ...item,
+      date: item.date || getTodayDate()
+    }));
   });
 
   useEffect(() => {
-    localStorage.setItem('accounting_items', JSON.stringify(items));
+    setStorageItem('accounting_items', items);
   }, [items]);
 
-  // 每月預算狀態
-  const [budget, setBudget] = useState(() => {
-    try {
-      const savedBudget = localStorage.getItem('monthly_budget');
-      return savedBudget ? Number(savedBudget) : 20000;
-    } catch (e) {
-      return 20000;
-    }
-  });
+  // 🎯 3. 每月預算狀態 (安全載入)
+  const [budget, setBudget] = useState(() => getStorageItem('monthly_budget', 20000));
 
   useEffect(() => {
-    localStorage.setItem('monthly_budget', budget.toString());
+    setStorageItem('monthly_budget', budget);
   }, [budget]);
 
   // 表單狀態
@@ -651,7 +630,6 @@ function App() {
   const handleClearAll = () => {
     if (window.confirm('⚠️ 警告：確定要清空「所有」記帳紀錄嗎？此動作無法復原！')) {
       setItems([]);
-      localStorage.removeItem('accounting_items');
       showToast('所有記帳紀錄已清空', 'error');
     }
   };
