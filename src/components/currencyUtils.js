@@ -1,25 +1,47 @@
-// 預設匯率 (保底用，當離線或 API 故障時使用)
+// 幣別基礎資訊
 export const DEFAULT_RATES = {
-  TWD: { symbol: 'NT$', rate: 1, flag: '🇹🇼', name: '新台幣', label: '新台幣 (TWD)' },
-  USD: { symbol: '$', rate: 0.031, flag: '🇺🇸', name: '美元', label: '美元 (USD)' },
-  JPY: { symbol: '¥', rate: 4.65, flag: '🇯🇵', name: '日圓', label: '日圓 (JPY)' },
-  EUR: { symbol: '€', rate: 0.028, flag: '🇪🇺', name: '歐元', label: '歐元 (EUR)' },
-  GBP: { symbol: '£', rate: 0.024, flag: '🇬🇧', name: '英鎊', label: '英鎊 (GBP)' },
-  HKD: { symbol: 'HK$', rate: 0.24, flag: '🇭🇰', name: '港幣', label: '港幣 (HKD)' },
-  KRW: { symbol: '₩', rate: 41.5, flag: '🇰🇷', name: '韓元', label: '韓元 (KRW)' }
+  TWD: { symbol: 'NT$', rate: 1, flag: '🇹🇼', code: 'TWD' },
+  USD: { symbol: '$', rate: 0.031, flag: '🇺🇸', code: 'USD' },
+  JPY: { symbol: '¥', rate: 4.65, flag: '🇯🇵', code: 'JPY' },
+  EUR: { symbol: '€', rate: 0.028, flag: '🇪🇺', code: 'EUR' },
+  GBP: { symbol: '£', rate: 0.024, flag: '🇬🇧', code: 'GBP' },
+  HKD: { symbol: 'HK$', rate: 0.24, flag: '🇭🇰', code: 'HKD' },
+  KRW: { symbol: '₩', rate: 41.5, flag: '🇰🇷', code: 'KRW' }
+};
+
+// 幣別多語系名稱字典（提供 繁中、英文、日文、韓文 預設備用）
+export const CURRENCY_NAMES = {
+  'zh-TW': {
+    TWD: '新台幣', USD: '美元', JPY: '日圓', EUR: '歐元', GBP: '英鎊', HKD: '港幣', KRW: '韓元',
+    offline: '離線備用'
+  },
+  'en': {
+    TWD: 'NTD', USD: 'USD', JPY: 'JPY', EUR: 'EUR', GBP: 'GBP', HKD: 'HKD', KRW: 'KRW',
+    offline: 'Offline Fallback'
+  },
+  'ja': {
+    TWD: '新台湾ドル', USD: '米ドル', JPY: '日本円', EUR: 'ユーロ', GBP: '英ポンド', HKD: '香港ドル', KRW: '韓国ウォン',
+    offline: 'オフライン予備'
+  },
+  'ko': {
+    TWD: '대만 달러', USD: '미국 달러', JPY: '일본 엔', EUR: '유로', GBP: '영국 파운드', HKD: '홍콩 달러', KRW: '대한민국 원',
+    offline: '오프라인 백업'
+  }
 };
 
 // 快取有效時間：1 小時 (以毫秒計算)
 const CACHE_EXPIRE_TIME = 60 * 60 * 1000;
 
 /**
- * 從免費即時 API 抓取最新匯率（支援基準幣別與快取機制）
+ * 從免費即時 API 抓取最新匯率（支援基準幣別、多語系與快取機制）
  * @param {string} baseCurrency - 主要基準幣別，預設為 'TWD'
  * @param {boolean} forceRefresh - 是否強制跳過快取重新發送 API 請求
+ * @param {string} lang - 當前語言 (zh-TW, en, ja, ko)
  */
-export const fetchExchangeRates = async (baseCurrency = 'TWD', forceRefresh = false) => {
+export const fetchExchangeRates = async (baseCurrency = 'TWD', forceRefresh = false, lang = 'zh-TW') => {
   const cacheKey = `accounting_rates_${baseCurrency}`;
   const now = Date.now();
+  const langDict = CURRENCY_NAMES[lang] || CURRENCY_NAMES['zh-TW'];
 
   // 1. 檢查 LocalStorage 是否有未過期的快取 (非強制刷新時才檢查)
   if (!forceRefresh) {
@@ -33,7 +55,7 @@ export const fetchExchangeRates = async (baseCurrency = 'TWD', forceRefresh = fa
           return {
             rates,
             isFallback: false,
-            lastUpdated: new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            lastUpdated: new Date(timestamp).toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' })
           };
         }
       }
@@ -54,7 +76,6 @@ export const fetchExchangeRates = async (baseCurrency = 'TWD', forceRefresh = fa
     const data = await response.json();
 
     if (data && data.result === 'success' && data.rates) {
-      // 保留原本的 symbol, flag, name 與 label，僅更新最新的 rate 數值
       const updatedRates = {};
       Object.keys(DEFAULT_RATES).forEach((code) => {
         updatedRates[code] = {
@@ -72,7 +93,7 @@ export const fetchExchangeRates = async (baseCurrency = 'TWD', forceRefresh = fa
       return {
         rates: updatedRates,
         isFallback: false,
-        lastUpdated: new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        lastUpdated: new Date(now).toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' })
       };
     } else {
       throw new Error('API 回傳資料格式異常');
@@ -82,7 +103,7 @@ export const fetchExchangeRates = async (baseCurrency = 'TWD', forceRefresh = fa
     return {
       rates: DEFAULT_RATES,
       isFallback: true,
-      lastUpdated: '離線備用'
+      lastUpdated: langDict.offline
     };
   }
 };

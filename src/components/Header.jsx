@@ -1,6 +1,11 @@
+// src/components/Header.jsx
 import React from 'react';
+import { useAppContext } from '../context/AppContext';
 
 function Header({ currentMonth, onMonthChange, onExportCSV, isDarkMode, onToggleDarkMode }) {
+  // 🌐 取得全域 i18n 字典檔
+  const { t } = useAppContext();
+
   return (
     <>
       <h1 style={{
@@ -15,7 +20,7 @@ function Header({ currentMonth, onMonthChange, onExportCSV, isDarkMode, onToggle
         gap: '8px',
         transition: 'color 0.3s ease'
       }}>
-        💰 我的記帳 App
+        💰 {t.appTitle || '我的記帳 App'}
       </h1>
 
       <div 
@@ -24,10 +29,10 @@ function Header({ currentMonth, onMonthChange, onExportCSV, isDarkMode, onToggle
           display: 'flex',
           alignItems: 'center', 
           justifyContent: 'space-between',
-          flexWrap: 'nowrap',                  /* 🎯 關鍵：強迫單行，絕對不換行 */
+          flexWrap: 'nowrap',                 /* 🎯 強迫單行，絕對不換行 */
           backgroundColor: isDarkMode ? '#2c3846' : '#1e3a8a',
           color: '#ffffff',
-          padding: '8px 10px',                 /* 🎯 稍微縮小容器邊距，留空間給按鈕 */
+          padding: '8px 10px',                 /* 🎯 縮小容器邊距 */
           borderRadius: '16px',
           marginBottom: '24px', 
           boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(30, 58, 138, 0.25)',
@@ -46,18 +51,20 @@ function Header({ currentMonth, onMonthChange, onExportCSV, isDarkMode, onToggle
             color: '#ffffff',
             border: isDarkMode ? '1px solid #3a4859' : 'none',
             borderRadius: '8px',
-            padding: '5px 8px',                /* 🎯 縮減 padding */
-            fontSize: 'clamp(11px, 3.2vw, 13px)', /* 🎯 隨螢幕自動微幅縮放文字 */
+            padding: '5px 8px',
+            fontSize: 'clamp(11px, 3.2vw, 13px)',
             fontWeight: '700',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             gap: '4px',
-            whiteSpace: 'nowrap',              /* 🎯 避文字換行 */
-            flexShrink: 0                     /* 🎯 避免壓縮變形 */
+            whiteSpace: 'nowrap',
+            flexShrink: 0
           }}
         >
-          {isDarkMode ? '🌙 暗黑' : '☀️ 白天'}
+          {isDarkMode 
+            ? `🌙 ${t.themeDark || '深色'}` 
+            : `☀️ ${t.themeLight || '淺色'}`}
         </button>
 
         {/* 中間：月份切換 */}
@@ -71,7 +78,7 @@ function Header({ currentMonth, onMonthChange, onExportCSV, isDarkMode, onToggle
               color: '#fff',
               fontSize: '12px',
               borderRadius: '6px',
-              width: '26px',                   /* 🎯 微調尺寸避擠壓 */
+              width: '26px',
               height: '26px',
               cursor: 'pointer',
               display: 'flex',
@@ -100,7 +107,7 @@ function Header({ currentMonth, onMonthChange, onExportCSV, isDarkMode, onToggle
               color: '#fff',
               fontSize: '12px',
               borderRadius: '6px',
-              width: '26px',                   /* 🎯 微調尺寸避擠壓 */
+              width: '26px',
               height: '26px',
               cursor: 'pointer',
               display: 'flex',
@@ -121,19 +128,19 @@ function Header({ currentMonth, onMonthChange, onExportCSV, isDarkMode, onToggle
             color: isDarkMode ? '#ffffff' : '#0284c7',
             border: '1.5px solid #38bdf8',
             borderRadius: '8px',
-            padding: '5px 8px',                /* 🎯 縮減 padding */
-            fontSize: 'clamp(11px, 3.2vw, 12px)', /* 🎯 自動縮放字體 */
+            padding: '5px 8px',
+            fontSize: 'clamp(11px, 3.2vw, 12px)',
             fontWeight: '700',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             gap: '3px',
-            whiteSpace: 'nowrap',              /* 🎯 文字不換行 */
+            whiteSpace: 'nowrap',
             flexShrink: 0,
             boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
           }}
         >
-          📊 匯出 Excel
+          📊 {t.exportExcelHeaderBtn || 'Excel 匯出'}
         </button>
       </div>
     </>

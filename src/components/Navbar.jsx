@@ -1,7 +1,55 @@
+// src/components/Navbar.jsx
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useAppContext } from '../context/AppContext';
+
+// 🌐 內建完整多語系對照表，確保切換語言時導覽列文字能立即改變
+const NAVBAR_TRANSLATIONS = {
+  'zh-TW': {
+    home: '明細',
+    stats: '分析',
+    wallets: '錢包・目標',
+    history: '月報',
+    settings: '設定'
+  },
+  'zh-CN': {
+    home: '明细',
+    stats: '分析',
+    wallets: '账户・目标',
+    history: '月报',
+    settings: '设置'
+  },
+  'en': {
+    home: 'Transactions',
+    stats: 'Stats',
+    wallets: 'Wallets & Goals',
+    history: 'History',
+    settings: 'Settings'
+  },
+  'ja': {
+    home: '明細',
+    stats: '分析',
+    wallets: '口座・目標',
+    history: '月報',
+    settings: '設定'
+  },
+  'ko': {
+    home: '내역',
+    stats: '통계',
+    wallets: '지갑·목표',
+    history: '월간',
+    settings: '설정'
+  }
+};
 
 function Navbar({ isDarkMode }) {
+  // 🌐 取得全域語言狀態 (lang) 與字典 (t)
+  const { lang, t } = useAppContext();
+
+  // 取得當前語言對應的字典，若無則預設為繁體中文
+  const currentLang = lang || 'zh-TW';
+  const dict = NAVBAR_TRANSLATIONS[currentLang] || NAVBAR_TRANSLATIONS['zh-TW'];
+
   const linkStyle = ({ isActive }) => ({
     flex: 1,
     display: 'flex',
@@ -64,19 +112,19 @@ function Navbar({ isDarkMode }) {
 
       <nav className="responsive-navbar">
         <NavLink to="/" style={linkStyle}>
-          <span>📝</span> 明細
+          <span>📝</span> {t?.navHome || dict.home}
         </NavLink>
         <NavLink to="/stats" style={linkStyle}>
-          <span>📊</span> 分析
+          <span>📊</span> {t?.navStats || dict.stats}
         </NavLink>
         <NavLink to="/wallets" style={linkStyle}>
-          <span>👛</span> 錢包與目標
+          <span>👛</span> {t?.navWallets || dict.wallets}
         </NavLink>
         <NavLink to="/history" style={linkStyle}>
-          <span>📅</span> 月報
+          <span>📅</span> {t?.navHistory || dict.history}
         </NavLink>
         <NavLink to="/settings" style={linkStyle}>
-          <span>⚙️</span> 設定
+          <span>⚙️</span> {t?.navSettings || dict.settings}
         </NavLink>
       </nav>
     </>

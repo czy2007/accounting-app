@@ -1,6 +1,38 @@
-import React from 'react';
+// src/components/Toast.jsx
+import React, { useEffect, useMemo } from 'react';
+import { useAppContext } from '../context/AppContext';
 
-function Toast({ message, type = 'info', onClose, isDarkMode }) {
+// 預設多語系字典 (備用關閉提示與常見通知)
+const DEFAULT_TRANSLATIONS = {
+  'zh-TW': { close: '關閉通知' },
+  'zh-CN': { close: '关闭通知' },
+  'ja': { close: '通知を閉じる' },
+  'ko': { close: '알림 닫기' },
+  'en': { close: 'Close notification' }
+};
+
+function Toast({ message, type = 'info', onClose, duration = 3000, isDarkMode }) {
+  // 從 Context 取得當前語言設定
+  const appContext = useAppContext ? useAppContext() : {};
+  const currentLang = appContext?.language || 'zh-TW';
+  const customTranslations = appContext?.translations || {};
+
+  const t = useMemo(() => {
+    const defaultDict = DEFAULT_TRANSLATIONS[currentLang] || DEFAULT_TRANSLATIONS['zh-TW'];
+    const customDict = customTranslations[currentLang] || {};
+    return { ...defaultDict, ...customDict };
+  }, [currentLang, customTranslations]);
+
+  // ⏱️ 自動倒數關閉提示
+  useEffect(() => {
+    if (!message || !onClose || duration <= 0) return;
+    const timer = setTimeout(() => {
+      onClose();
+    }, duration);
+
+    return () => clearTimeout(timer);
+  }, [message, onClose, duration]);
+
   if (!message) return null;
 
   // 根據通知類型決定顏色與圖示
@@ -39,8 +71,12 @@ function Toast({ message, type = 'info', onClose, isDarkMode }) {
 
   const style = getTypeStyles();
 
+  // 若 message 為多語系 key 則自動翻譯，否則直接顯示原字串
+  const displayMessage = t[message] || message;
+
   return (
     <div
+      role="alert"
       style={{
         position: 'fixed',
         top: '20px',
@@ -76,10 +112,12 @@ function Toast({ message, type = 'info', onClose, isDarkMode }) {
         }
       `}</style>
       <span>{style.icon}</span>
-      <span>{message}</span>
+      <span>{displayMessage}</span>
       {onClose && (
         <button
+          type="button"
           onClick={onClose}
+          aria-label={t.close || 'Close'}
           style={{
             background: 'none',
             border: 'none',
@@ -87,7 +125,8 @@ function Toast({ message, type = 'info', onClose, isDarkMode }) {
             cursor: 'pointer',
             fontSize: '14px',
             marginLeft: '8px',
-            padding: 0
+            padding: 0,
+            lineHeight: 1
           }}
         >
           ✕

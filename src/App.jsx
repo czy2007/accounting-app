@@ -6,7 +6,7 @@ import ExpenseForm from './components/ExpenseForm';
 import Toast from './components/Toast';
 import LoadingSpinner from './components/LoadingSpinner';
 import { useAppContext } from './context/AppContext'; // 🌟 引入全域 Context
-import { getStorageItem, setStorageItem } from './components/storage'; // 🛡️ 引入安全 Storage 工具
+import { getStorageItem, setStorageItem } from './components/storage'; // 🛡️️ 引入安全 Storage 工具
 import './App.css';
 
 // 引入頁面組件
@@ -51,7 +51,17 @@ function App() {
   const handleBaseCurrencyChange = (newBaseCurrency) => {
     if (newBaseCurrency === baseCurrency) return;
 
-    if (window.confirm(`確定要將系統主要貨幣變更為 ${newBaseCurrency} 嗎？所有過往紀錄與存錢目標金額將會自動依當前匯率重新計算。`)) {
+    const confirmMsg = lang === 'zh-TW'
+      ? `確定要將系統主要貨幣變更為 ${newBaseCurrency} 嗎？所有過往紀錄與存錢目標金額將會自動依當前匯率重新計算。`
+      : lang === 'zh-CN'
+      ? `确定要将系统主要货币变更為 ${newBaseCurrency} 吗？所有以往记录与存钱目标金额将会自动依当前汇率重新计算。`
+      : lang === 'ja'
+      ? `主要通貨を ${newBaseCurrency} に変更しますか？すべての過去の記録と目標金額が現在の為替レートで再計算されます。`
+      : lang === 'ko'
+      ? `기본 통화를 ${newBaseCurrency}(으)로 변경하시겠습니까? 모든 기록과 목표 금액이 현재 환율로 다시 계산됩니다.`
+      : `Are you sure you want to change the main currency to ${newBaseCurrency}? All past records and goals will be recalculated.`;
+
+    if (window.confirm(confirmMsg)) {
       setBaseCurrency(newBaseCurrency);
       
       // 1. 換算記帳紀錄金額
@@ -105,7 +115,7 @@ function App() {
         };
       }));
 
-      showToast(`${t.currencyChanged} ${newBaseCurrency}`, 'info');
+      showToast(`${t?.currencyChanged || 'Currency changed:'} ${newBaseCurrency}`, 'info');
     }
   };
 
@@ -200,11 +210,13 @@ function App() {
     const numAmount = Number(amount);
 
     if (!numAmount) {
-      showToast(lang === 'zh-TW' ? '請填寫金額！' : 'Please enter an amount!', 'warning');
+      const msg = lang === 'zh-TW' ? '請填寫金額！' : lang === 'zh-CN' ? '请填写金额！' : lang === 'ja' ? '金額を入力してください！' : lang === 'ko' ? '금액을 입력해 주세요!' : 'Please enter an amount!';
+      showToast(msg, 'warning');
       return;
     }
     if (numAmount <= 0) {
-      showToast(lang === 'zh-TW' ? '金額必須大於 0 元！' : 'Amount must be greater than 0!', 'warning');
+      const msg = lang === 'zh-TW' ? '金額必須大於 0 元！' : lang === 'zh-CN' ? '金额必须大于 0 元！' : lang === 'ja' ? '金額は0より大きい必要があります！' : lang === 'ko' ? '금액은 0보다 커야 합니다!' : 'Amount must be greater than 0!';
+      showToast(msg, 'warning');
       return;
     }
 
@@ -235,7 +247,7 @@ function App() {
             : item
         )
       );
-      showToast(t.itemUpdated, 'success');
+      showToast(t?.itemUpdated || '紀錄已更新！', 'success');
     } else {
       setItems(prevItems => [
         { 
@@ -250,7 +262,7 @@ function App() {
         },
         ...prevItems
       ]);
-      showToast(t.itemAdded, 'success');
+      showToast(t?.itemAdded || '紀錄已新增！', 'success');
     }
 
     handleCloseModal();
@@ -283,22 +295,36 @@ function App() {
 
     setItems(prev => prev.filter(item => item.id !== id));
 
-    // 🔔 根據是否為目標存入明細顯示警示通知
+    // 🔔 根據多語系與是否為目標存入明細顯示警示通知
     if (isGoalExpense) {
-      showToast(
-        lang === 'zh-TW' 
-          ? `已刪除此筆紀錄，目標「${targetGoalName || '存錢目標'}」已同步扣除對應金額！` 
-          : 'Record deleted. Savings goal balance updated!', 
-        'warning'
-      );
+      const msg = lang === 'zh-TW' 
+        ? `已刪除此筆紀錄，目標「${targetGoalName || '存錢目標'}」已同步扣除對應金額！`
+        : lang === 'zh-CN'
+        ? `已删除此条记录，目标“${targetGoalName || '存钱目标'}”已同步扣除对应金额！`
+        : lang === 'ja'
+        ? `記録を削除しました。目標「${targetGoalName || '貯金目標'}」の残高も更新されました！`
+        : lang === 'ko'
+        ? `기록이 삭제되었습니다. 목표 "${targetGoalName || '저축 목표'}" 잔액이 업데이트되었습니다!`
+        : 'Record deleted. Savings goal balance updated!';
+      showToast(msg, 'warning');
     } else {
-      showToast(t.itemDeleted, 'info');
+      showToast(t?.itemDeleted || '已刪除紀錄', 'info');
     }
   };
 
   // 🌟 批量刪除：若包含目標存入明細，同樣給予提示與同步扣除
   const handleBatchDelete = (selectedIds) => {
-    if (window.confirm(`確定要刪除選取的 ${selectedIds.length} 筆紀錄嗎？`)) {
+    const confirmMsg = lang === 'zh-TW' 
+      ? `確定要刪除選取的 ${selectedIds.length} 筆紀錄嗎？`
+      : lang === 'zh-CN'
+      ? `确定要删除选取的 ${selectedIds.length} 条记录吗？`
+      : lang === 'ja'
+      ? `選択した ${selectedIds.length} 件の記録を削除しますか？`
+      : lang === 'ko'
+      ? `선택한 ${selectedIds.length}개의 항목을 삭제하시겠습니까?`
+      : `Are you sure you want to delete ${selectedIds.length} items?`;
+
+    if (window.confirm(confirmMsg)) {
       const itemsToDelete = items.filter(item => selectedIds.includes(item.id));
       let affectedGoalsCount = 0;
 
@@ -323,14 +349,15 @@ function App() {
       setItems(prev => prev.filter(t => !selectedIds.includes(t.id)));
 
       if (affectedGoalsCount > 0) {
-        showToast(
-          lang === 'zh-TW' 
-            ? `已刪除 ${selectedIds.length} 筆紀錄（含 ${affectedGoalsCount} 筆存錢紀錄，目標進度已同步更新）` 
-            : `Deleted ${selectedIds.length} items and updated savings goals!`, 
-          'warning'
-        );
+        const msg = lang === 'zh-TW' 
+          ? `已刪除 ${selectedIds.length} 筆紀錄（含 ${affectedGoalsCount} 筆存錢紀錄，目標進度已同步更新）` 
+          : lang === 'zh-CN'
+          ? `已删除 ${selectedIds.length} 条记录（含 ${affectedGoalsCount} 条存钱记录，目标进度已同步更新）`
+          : `Deleted ${selectedIds.length} items and updated savings goals!`;
+        showToast(msg, 'warning');
       } else {
-        showToast(`已成功刪除 ${selectedIds.length} 筆紀錄`, 'info');
+        const msg = lang === 'zh-TW' ? `已成功刪除 ${selectedIds.length} 筆紀錄` : lang === 'zh-CN' ? `已成功删除 ${selectedIds.length} 条记录` : `Successfully deleted ${selectedIds.length} items`;
+        showToast(msg, 'info');
       }
     }
   };
@@ -365,7 +392,8 @@ function App() {
       setItems(prev => [initExpense, ...prev]);
     }
 
-    showToast(lang === 'zh-TW' ? '已建立存錢目標！' : 'Savings goal created!', 'success');
+    const msg = lang === 'zh-TW' ? '已建立存錢目標！' : lang === 'zh-CN' ? '已创建存钱目标！' : lang === 'ja' ? '貯金目標を作成しました！' : lang === 'ko' ? '저축 목표가 생성되었습니다!' : 'Savings goal created!';
+    showToast(msg, 'success');
   };
 
   const handleEditGoal = (updatedGoal) => {
@@ -375,7 +403,8 @@ function App() {
       originalTargetAmount: Number(updatedGoal.targetAmount),
       originalCurrentAmount: Number(updatedGoal.currentAmount || 0)
     } : g));
-    showToast(lang === 'zh-TW' ? '目標變更已儲存' : 'Goal updated', 'success');
+    const msg = lang === 'zh-TW' ? '目標變更已儲存' : lang === 'zh-CN' ? '目标变更已保存' : 'Goal updated';
+    showToast(msg, 'success');
   };
 
   // 🌟 刪除目標：雙重比對 goalId 與 名稱，確保新舊明細均自動清理並歸還資金
@@ -385,6 +414,8 @@ function App() {
 
     const confirmMsg = lang === 'zh-TW'
       ? `確定要刪除存錢目標「${targetGoal.name}」嗎？\n\n⚠️ 注意：當初存入此目標的所有支出紀錄將會自動刪除，並將資金歸還（加回）至你的結餘中！`
+      : lang === 'zh-CN'
+      ? `确定要删除存钱目标“${targetGoal.name}”吗？\n\n⚠️ 注意：当初存入此目标的所有支出记录将会自动删除，并将资金归还（加回）至你的结余中！`
       : `Are you sure you want to delete "${targetGoal.name}"?\n\nAll deposit records for this goal will be removed and returned to your balance!`;
 
     if (window.confirm(confirmMsg)) {
@@ -403,7 +434,8 @@ function App() {
         return !(isMatchById || isMatchByName);
       }));
 
-      showToast(lang === 'zh-TW' ? '已刪除存錢目標，對應資金已自動歸還！' : 'Goal deleted and funds restored!', 'info');
+      const msg = lang === 'zh-TW' ? '已刪除存錢目標，對應資金已自動歸還！' : lang === 'zh-CN' ? '已删除存钱目标，对应资金已自动归还！' : 'Goal deleted and funds restored!';
+      showToast(msg, 'info');
     }
   };
 
@@ -411,7 +443,8 @@ function App() {
   const handleDepositGoal = (goalId, depositAmount, depositCurrency = baseCurrency) => {
     const numAmt = Number(depositAmount);
     if (!numAmt || numAmt <= 0) {
-      showToast(lang === 'zh-TW' ? '請輸入正確的存入金額！' : 'Please enter a valid deposit amount!', 'warning');
+      const msg = lang === 'zh-TW' ? '請輸入正確的存入金額！' : lang === 'zh-CN' ? '请输入正确的存入金额！' : 'Please enter a valid deposit amount!';
+      showToast(msg, 'warning');
       return;
     }
 
@@ -628,19 +661,31 @@ function App() {
   }, [groupedDataByDate]);
 
   const handleClearAll = () => {
-    if (window.confirm('⚠️ 警告：確定要清空「所有」記帳紀錄嗎？此動作無法復原！')) {
+    const confirmMsg = lang === 'zh-TW'
+      ? '⚠️ 警告：確定要清空「所有」記帳紀錄嗎？此動作無法復原！'
+      : lang === 'zh-CN'
+      ? '⚠️ 警告：确定要清空“所有”记账记录吗？此操作无法撤销！'
+      : '⚠️ Warning: Clear ALL transaction records?';
+
+    if (window.confirm(confirmMsg)) {
       setItems([]);
-      showToast('所有記帳紀錄已清空', 'error');
+      const msg = lang === 'zh-TW' ? '所有記帳紀錄已清空' : lang === 'zh-CN' ? '所有记账记录已清空' : 'All records cleared';
+      showToast(msg, 'error');
     }
   };
 
   const handleExportCSV = () => {
     if (items.length === 0) {
-      showToast(lang === 'zh-TW' ? '目前沒有任何記帳紀錄可供匯出！' : 'No records to export!', 'warning');
+      const msg = lang === 'zh-TW' ? '目前沒有任何記帳紀錄可供匯出！' : lang === 'zh-CN' ? '目前没有任何记账记录可供导出！' : 'No records to export!';
+      showToast(msg, 'warning');
       return;
     }
 
-    const headers = ['日期', '類型', '分類', '名稱/備註', '幣別', '外幣金額', `折合主要幣別(${baseCurrency})`];
+    const headers = lang === 'zh-TW'
+      ? ['日期', '類型', '分類', '名稱/備註', '幣別', '外幣金額', `折合主要幣別(${baseCurrency})`]
+      : lang === 'zh-CN'
+      ? ['日期', '类型', '分类', '名称/备注', '币种', '外币金额', `折合主要币种(${baseCurrency})`]
+      : ['Date', 'Type', 'Category', 'Note', 'Currency', 'Original Amount', `Main Currency (${baseCurrency})`];
 
     const rows = items.map(item => {
       return [
@@ -671,7 +716,7 @@ function App() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    showToast(t.csvExported, 'success');
+    showToast(t?.csvExported || 'CSV 匯出成功！', 'success');
   };
 
   const starBgLight = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cpath fill='none' stroke='%2393c5fd' stroke-opacity='0.6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M40 10l4.8 10.4 11.2 1.6-8 8 1.9 11.2-10-5.6-10 5.6 1.9-11.2-8-8 11.2-1.6zm80 80l4.8 10.4 11.2 1.6-8 8 1.9 11.2-10-5.6-10 5.6 1.9-11.2-8-8 11.2-1.6zM120 10l3 6.4 7 1-5 5 1.2 7-6.2-3.4-6.2 3.4 1.2-7-5-5 7-1zm-80 80l3 6.4 7 1-5 5 1.2 7-6.2-3.4-6.2 3.4 1.2-7-5-5 7-1z'/%3E%3C/svg%3E")`;

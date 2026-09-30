@@ -59,4 +59,65 @@
     flex: 1 !important; /* 按鈕平均分配剩餘空間 */
     justify-content: center !important;
   }
+
+  /* 👛 錢包與夢想目標頁面 (WalletsPage) RWD 補強 */
+  .wallet-overview-cards {
+    grid-template-columns: 1fr !important; /* 總卡片區改為單欄 */
+    gap: 12px !important;
+  }
+
+  .goals-grid {
+    grid-template-columns: 1fr !important; /* 夢想目標列表改為單欄卡片 */
+    gap: 16px !important;
+  }
+
+  /* Modal 彈出視窗寬度自適應與置中調整 */
+  .modal-overlay {
+    padding: 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    padding: 16px !important;
+    border-radius: 12px !important;
+  }
+
+  /* 表單兩欄（如幣別與金額）在手機上強制變單欄 */
+  .form-row {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  .form-group {
+    width: 100% !important;
+  }
+}
+
+/* 3. 超小型手機適應 (螢幕寬度 <= 480px) */
+@media (max-width: 480px) {
+  /* 縮減頁面邊距，釋放更多顯示空間 */
+  .page-container,
+  .wallets-page {
+    padding: 10px !important;
+  }
+
+  /* 標題與按鈕文字微調避免擠壓 */
+  .page-header h2 {
+    font-size: 1.25rem !important;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse !important; /* 取消與確認按鈕改上下排列 */
+    gap: 8px !important;
+  }
+
+  .modal-actions button {
+    width: 100% !important;
+  }
 }

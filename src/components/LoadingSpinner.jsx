@@ -1,6 +1,14 @@
+// src/components/LoadingSpinner.jsx
 import React from 'react';
+import { useAppContext } from '../context/AppContext';
 
-function LoadingSpinner({ isDarkMode, text = '資料載入中...' }) {
+function LoadingSpinner({ isDarkMode, text }) {
+  // 🌐 i18n 辞書データの取得
+  const { t } = useAppContext();
+
+  // 外部から text が渡された場合はそれを優先し、なければ辞書データ、最後にフォールバック値を使用
+  const spinnerText = text || t.loading || '読み込み中...';
+
   return (
     <div
       style={{
@@ -39,7 +47,7 @@ function LoadingSpinner({ isDarkMode, text = '資料載入中...' }) {
           textShadow: '0 2px 4px rgba(0,0,0,0.5)'
         }}
       >
-        {text}
+        {spinnerText}
       </div>
     </div>
   );

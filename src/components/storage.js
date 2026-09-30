@@ -14,12 +14,25 @@ export const getStorageItem = (key, fallbackValue) => {
     // 若預設值不是字串，嘗試用 JSON 解析
     if (typeof fallbackValue !== 'string') {
       const parsed = JSON.parse(item);
-      
-      // 🛡️ 型別檢查防呆：若預設值為陣列，解析後非陣列則啟動備援
+
+      // 🛡️ 1. 陣列防呆：若預設值為陣列，解析後非陣列則啟動備援
       if (Array.isArray(fallbackValue) && !Array.isArray(parsed)) {
-        console.warn(`[Storage Warning] Key "${key}" 格式錯誤 (非陣列)，已啟動安全備援。`);
+        console.warn(`[Storage Warning] Key "${key}" 格式錯誤 (應為陣列)，已啟動安全備援。`);
         return fallbackValue;
       }
+
+      // 🛡️ 2. 物件防呆：若預設值為純物件，解析後非物件或是陣列/null 則啟動備援
+      if (
+        typeof fallbackValue === 'object' &&
+        fallbackValue !== null &&
+        !Array.isArray(fallbackValue)
+      ) {
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+          console.warn(`[Storage Warning] Key "${key}" 格式錯誤 (應為物件)，已啟動安全備援。`);
+          return fallbackValue;
+        }
+      }
+
       return parsed;
     }
 
